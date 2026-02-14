@@ -17,6 +17,7 @@ export interface Session {
 	tools: ToolCalls;
 	sessionManager: SessionManager;
 	getModifiedFiles(): string[];
+	getDeletedFiles(): string[];
 	persistManifest(): Promise<void>;
 	close(): Promise<void>;
 }
@@ -57,6 +58,7 @@ export async function createSession(id: string, baseDir?: string): Promise<Sessi
 		tools: agentfs.tools,
 		sessionManager,
 		getModifiedFiles: () => overlay.getModifiedFiles(),
+		getDeletedFiles: () => overlay.getDeletedFiles(),
 		persistManifest: () => overlay.persistManifest(),
 		close: () => agentfs.close(),
 	};
@@ -84,6 +86,7 @@ export async function loadSession(id: string, baseDir?: string): Promise<Session
 		tools: agentfs.tools,
 		sessionManager,
 		getModifiedFiles: () => overlay.getModifiedFiles(),
+		getDeletedFiles: () => overlay.getDeletedFiles(),
 		persistManifest: () => overlay.persistManifest(),
 		close: () => agentfs.close(),
 	};
@@ -107,6 +110,7 @@ export function listSessions(baseDir?: string): string[] {
 export interface ApplySession {
 	deltaFs: FileSystem;
 	modifiedFiles: string[];
+	deletedFiles: string[];
 	close(): Promise<void>;
 }
 
@@ -119,11 +123,12 @@ export async function openSessionForApply(id: string, baseDir?: string): Promise
 	const db = new BunSqliteAdapter(path);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const agentfs = await AgentFS.openWith(db as any);
-	const modifiedFiles = await OverlayAgentFS.loadManifest(agentfs.fs);
+	const manifest = await OverlayAgentFS.loadManifest(agentfs.fs);
 
 	return {
 		deltaFs: agentfs.fs,
-		modifiedFiles,
+		modifiedFiles: manifest.modified,
+		deletedFiles: manifest.deleted,
 		close: () => agentfs.close(),
 	};
 }
