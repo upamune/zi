@@ -6,27 +6,33 @@ import { createReadTool, type ReadTool } from "./read.js";
 import { createWriteTool, type WriteTool } from "./write.js";
 
 export type { BashTool, EditTool, ReadTool, WriteTool };
+
+export interface BaseTool {
+	name: string;
+	execute(params: Record<string, unknown>): Promise<unknown>;
+}
+
 export type Tool = ReadTool | WriteTool | EditTool | BashTool;
-export type ToolName = Tool["name"];
+export type ToolName = "read" | "write" | "edit" | "bash";
 
 export interface ToolRegistry {
-	get<T extends Tool>(name: ToolName): T | undefined;
-	getAll(): Map<ToolName, Tool>;
-	register(tool: Tool): void;
+	get(name: ToolName): BaseTool | undefined;
+	getAll(): Map<string, BaseTool>;
+	register(tool: BaseTool): void;
 }
 
 class ToolRegistryImpl implements ToolRegistry {
-	private tools = new Map<ToolName, Tool>();
+	private tools = new Map<string, BaseTool>();
 
-	get<T extends Tool>(name: ToolName): T | undefined {
-		return this.tools.get(name) as T | undefined;
+	get(name: ToolName): BaseTool | undefined {
+		return this.tools.get(name);
 	}
 
-	getAll(): Map<ToolName, Tool> {
+	getAll(): Map<string, BaseTool> {
 		return new Map(this.tools);
 	}
 
-	register(tool: Tool): void {
+	register(tool: BaseTool): void {
 		this.tools.set(tool.name, tool);
 	}
 }
@@ -34,10 +40,10 @@ class ToolRegistryImpl implements ToolRegistry {
 export function createToolRegistry(bash: Bash, fs: Filesystem, tools: ToolCalls): ToolRegistry {
 	const registry = new ToolRegistryImpl();
 
-	registry.register(createReadTool(bash, tools));
-	registry.register(createWriteTool(fs, tools));
-	registry.register(createEditTool(bash, fs, tools));
-	registry.register(createBashTool(bash, tools));
+	registry.register(createReadTool(bash, tools) as BaseTool);
+	registry.register(createWriteTool(fs, tools) as BaseTool);
+	registry.register(createEditTool(bash, fs, tools) as BaseTool);
+	registry.register(createBashTool(bash, tools) as BaseTool);
 
 	return registry;
 }
