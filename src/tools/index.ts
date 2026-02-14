@@ -1,4 +1,4 @@
-import type { Filesystem, ToolCalls } from "agentfs-sdk";
+import type { FileSystem, ToolCalls } from "agentfs-sdk";
 import type { Bash } from "just-bash";
 import { type BashTool, createBashTool } from "./bash.js";
 import { createEditTool, type EditTool } from "./edit.js";
@@ -39,7 +39,7 @@ class ToolRegistryImpl implements ToolRegistry {
 
 export function createToolRegistry(
 	bash: Bash,
-	fs: Filesystem,
+	fs: FileSystem,
 	tools: ToolCalls,
 	enabledTools: ToolName[] = ["read", "write", "edit", "bash"]
 ): ToolRegistry {

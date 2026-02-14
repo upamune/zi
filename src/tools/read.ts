@@ -1,4 +1,4 @@
-import type { Filesystem, ToolCalls } from "agentfs-sdk";
+import type { FileSystem, ToolCalls } from "agentfs-sdk";
 
 export interface ReadResult {
 	path: string;
@@ -12,7 +12,7 @@ export interface ReadTool {
 	execute(params: { path: string; offset?: number; limit?: number }): Promise<ReadResult>;
 }
 
-export function createReadTool(fs: Filesystem, tools: ToolCalls): ReadTool {
+export function createReadTool(fs: FileSystem, tools: ToolCalls): ReadTool {
 	return {
 		name: "read",
 		async execute(params: { path: string; offset?: number; limit?: number }): Promise<ReadResult> {

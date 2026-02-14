@@ -1,4 +1,4 @@
-import type { Filesystem, ToolCalls } from "agentfs-sdk";
+import type { FileSystem, ToolCalls } from "agentfs-sdk";
 
 export interface EditResult {
 	path: string;
@@ -17,7 +17,7 @@ export interface EditTool {
 	}): Promise<EditResult>;
 }
 
-export function createEditTool(fs: Filesystem, tools: ToolCalls): EditTool {
+export function createEditTool(fs: FileSystem, tools: ToolCalls): EditTool {
 	return {
 		name: "edit",
 		async execute(params: {

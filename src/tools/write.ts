@@ -1,4 +1,4 @@
-import type { Filesystem, ToolCalls } from "agentfs-sdk";
+import type { FileSystem, ToolCalls } from "agentfs-sdk";
 
 export interface WriteResult {
 	path: string;
@@ -10,7 +10,7 @@ export interface WriteTool {
 	execute(params: { path: string; content: string }): Promise<WriteResult>;
 }
 
-export function createWriteTool(fs: Filesystem, tools: ToolCalls): WriteTool {
+export function createWriteTool(fs: FileSystem, tools: ToolCalls): WriteTool {
 	return {
 		name: "write",
 		async execute(params: { path: string; content: string }): Promise<WriteResult> {
