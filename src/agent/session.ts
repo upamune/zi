@@ -6,7 +6,6 @@ import { SessionManager } from "./session-manager.js";
 
 // agentfs-sdk の browser export を使用 (native binding 不要、bun compile 対応)
 // node export は @tursodatabase/database の native binding を top-level import するため使えない
-// @ts-expect-error agentfs-sdk は browser export を公開していないため internal path を参照
 const { AgentFS } = await import("../../node_modules/agentfs-sdk/dist/index_browser.js");
 
 export interface Session {
@@ -42,7 +41,8 @@ export async function createSession(id: string, baseDir?: string): Promise<Sessi
 	const cwd = baseDir ?? process.cwd();
 
 	const db = new BunSqliteAdapter(path);
-	const agentfs = await AgentFS.openWith(db);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- BunSqliteAdapter は DatabasePromise の public API を満たすが private プロパティが型に含まれるため
+	const agentfs = await AgentFS.openWith(db as any);
 	const sessionManager = SessionManager.create(cwd);
 
 	return {
@@ -65,7 +65,8 @@ export async function loadSession(id: string, baseDir?: string): Promise<Session
 
 	const cwd = baseDir ?? process.cwd();
 	const db = new BunSqliteAdapter(path);
-	const agentfs = await AgentFS.openWith(db);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- BunSqliteAdapter は DatabasePromise の public API を満たすが private プロパティが型に含まれるため
+	const agentfs = await AgentFS.openWith(db as any);
 	const sessionManager = SessionManager.create(cwd);
 
 	return {

@@ -8,21 +8,18 @@ class BunSqliteStatement {
 	}
 
 	async run(...params: unknown[]) {
-		const flatParams =
-			params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
+		const flatParams = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
 		this.stmt.run(...flatParams);
 		return { changes: 0, lastInsertRowid: 0 };
 	}
 
 	async get(...params: unknown[]) {
-		const flatParams =
-			params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
+		const flatParams = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
 		return this.stmt.get(...flatParams) ?? undefined;
 	}
 
 	async all(...params: unknown[]) {
-		const flatParams =
-			params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
+		const flatParams = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
 		return this.stmt.all(...flatParams);
 	}
 
@@ -49,8 +46,14 @@ class BunSqliteStatement {
 
 export class BunSqliteAdapter {
 	private db: BunDatabase;
+	readonly name: string;
+	readonly readonly = false;
+	readonly open = true;
+	readonly memory = false;
+	inTransaction = false;
 
 	constructor(path: string) {
+		this.name = path;
 		this.db = new BunDatabase(path, { create: true });
 		this.db.run("PRAGMA journal_mode=WAL");
 	}
@@ -72,15 +75,14 @@ export class BunSqliteAdapter {
 	}
 
 	transaction(fn: (...args: unknown[]) => Promise<unknown>) {
-		const self = this;
 		const wrapper = async (...args: unknown[]) => {
-			self.db.run("BEGIN");
+			this.db.run("BEGIN");
 			try {
 				const result = await fn(...args);
-				self.db.run("COMMIT");
+				this.db.run("COMMIT");
 				return result;
 			} catch (err) {
-				self.db.run("ROLLBACK");
+				this.db.run("ROLLBACK");
 				throw err;
 			}
 		};
@@ -94,4 +96,25 @@ export class BunSqliteAdapter {
 
 	defaultSafeIntegers() {}
 	interrupt() {}
+	backup() {
+		throw new Error("not implemented");
+	}
+	serialize() {
+		throw new Error("not implemented");
+	}
+	function() {
+		throw new Error("not implemented");
+	}
+	aggregate() {
+		throw new Error("not implemented");
+	}
+	table() {
+		throw new Error("not implemented");
+	}
+	loadExtension() {
+		throw new Error("not implemented");
+	}
+	maxWriteReplicationIndex() {
+		throw new Error("not implemented");
+	}
 }
