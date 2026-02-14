@@ -150,7 +150,7 @@ async function applySession(sessionId: string, cwd: string, sessionDir?: string)
 	const session = await openSessionForApply(sessionId, baseDir);
 
 	try {
-		if (session.modifiedFiles.length === 0) {
+		if (session.modifiedFiles.length === 0 && session.deletedFiles.length === 0) {
 			console.log("No changes to apply.");
 			return;
 		}
@@ -164,6 +164,12 @@ async function applySession(sessionId: string, cwd: string, sessionDir?: string)
 			const status = isNew ? "A" : "M";
 			console.log(`  ${status} ${display} (${deltaContent.length} bytes)`);
 		}
+		for (const filePath of session.deletedFiles) {
+			const display = toRelativePath(filePath, baseDir);
+			if (existsSync(filePath)) {
+				console.log(`  D ${display}`);
+			}
+		}
 
 		console.log("");
 		const ok = await confirm("Apply these changes?");
@@ -173,6 +179,7 @@ async function applySession(sessionId: string, cwd: string, sessionDir?: string)
 			return;
 		}
 
+		let applied = 0;
 		for (const filePath of session.modifiedFiles) {
 			const deltaContent = await session.deltaFs.readFile(filePath);
 			const dir = dirname(filePath);
@@ -180,9 +187,16 @@ async function applySession(sessionId: string, cwd: string, sessionDir?: string)
 				await nodeFs.mkdir(dir, { recursive: true });
 			}
 			await nodeFs.writeFile(filePath, deltaContent);
+			applied++;
+		}
+		for (const filePath of session.deletedFiles) {
+			if (existsSync(filePath)) {
+				await nodeFs.unlink(filePath);
+				applied++;
+			}
 		}
 
-		console.log(`\n✓ Applied ${session.modifiedFiles.length} file(s)`);
+		console.log(`\n✓ Applied ${applied} file(s)`);
 	} finally {
 		await session.close();
 	}

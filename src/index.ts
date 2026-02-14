@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Bash, OverlayFs } from "just-bash";
+import { Bash } from "just-bash";
 import { Agent } from "./agent/index.js";
 import { createProvider, getModelsByProvider, type ProviderName } from "./agent/provider.js";
 import { createSession, listSessions, loadSession, sessionExists } from "./agent/session.js";
@@ -14,6 +14,8 @@ import {
 	resolveToolSelection,
 } from "./cli-runtime.js";
 import { loadConfig } from "./config/index.js";
+import { BashFsAdapter } from "./fs/bash-fs-adapter.js";
+import type { OverlayAgentFS } from "./fs/overlay-agentfs.js";
 import { buildPromptFromInputs, expandFileArgs, readStdinIfAvailable } from "./input-ingestion.js";
 import { runSubcommand } from "./subcommands.js";
 import { createToolRegistry } from "./tools/index.js";
@@ -127,7 +129,7 @@ async function main(): Promise<void> {
 			: await createSession(sessionId, baseDir);
 
 	const cwd = baseDir ?? process.cwd();
-	const bashFs = new OverlayFs({ root: cwd, mountPoint: cwd });
+	const bashFs = new BashFsAdapter(session.fs as OverlayAgentFS, cwd);
 	const bash = new Bash({ fs: bashFs, cwd });
 	const tools = createToolRegistry(bash, session.fs, session.tools, selectedTools.enabledTools);
 	const provider = createProvider(config);
@@ -221,14 +223,20 @@ async function main(): Promise<void> {
 		tui.stop();
 		(async () => {
 			const modifiedFiles = session.getModifiedFiles();
-			if (modifiedFiles.length > 0) {
+			const deletedFiles = session.getDeletedFiles();
+			if (modifiedFiles.length > 0 || deletedFiles.length > 0) {
 				await session.persistManifest().catch(() => {});
 				const cwdPrefix = `${cwd}/`;
+				const total = modifiedFiles.length + deletedFiles.length;
 				console.log("\n━━━ Session ended ━━━");
-				console.log(`📝 ${modifiedFiles.length} file(s) modified:\n`);
+				console.log(`📝 ${total} file(s) changed:\n`);
 				for (const f of modifiedFiles) {
 					const display = f.startsWith(cwdPrefix) ? f.slice(cwdPrefix.length) : f;
 					console.log(`  M ${display}`);
+				}
+				for (const f of deletedFiles) {
+					const display = f.startsWith(cwdPrefix) ? f.slice(cwdPrefix.length) : f;
+					console.log(`  D ${display}`);
 				}
 				console.log(`\nTo review and apply:\n  zi apply ${sessionId}`);
 			}

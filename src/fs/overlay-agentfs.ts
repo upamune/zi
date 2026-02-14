@@ -35,6 +35,7 @@ const MANIFEST_PATH = "/__zi_manifest.json";
 
 export class OverlayAgentFS implements FileSystem {
 	private modifiedFiles = new Set<string>();
+	private deletedFiles = new Set<string>();
 
 	constructor(
 		private delta: FileSystem,
@@ -45,17 +46,32 @@ export class OverlayAgentFS implements FileSystem {
 		return [...this.modifiedFiles];
 	}
 
-	async persistManifest(): Promise<void> {
-		if (this.modifiedFiles.size === 0) return;
-		await this.delta.writeFile(MANIFEST_PATH, JSON.stringify([...this.modifiedFiles]));
+	getDeletedFiles(): string[] {
+		return [...this.deletedFiles];
 	}
 
-	static async loadManifest(delta: FileSystem): Promise<string[]> {
+	async persistManifest(): Promise<void> {
+		if (this.modifiedFiles.size === 0 && this.deletedFiles.size === 0) return;
+		const manifest = {
+			modified: [...this.modifiedFiles],
+			deleted: [...this.deletedFiles],
+		};
+		await this.delta.writeFile(MANIFEST_PATH, JSON.stringify(manifest));
+	}
+
+	static async loadManifest(delta: FileSystem): Promise<{ modified: string[]; deleted: string[] }> {
 		try {
 			const content = await delta.readFile(MANIFEST_PATH, "utf-8");
-			return JSON.parse(content as string);
+			const parsed = JSON.parse(content as string);
+			if (Array.isArray(parsed)) {
+				return { modified: parsed, deleted: [] };
+			}
+			return {
+				modified: parsed.modified ?? [],
+				deleted: parsed.deleted ?? [],
+			};
 		} catch {
-			return [];
+			return { modified: [], deleted: [] };
 		}
 	}
 
@@ -64,6 +80,16 @@ export class OverlayAgentFS implements FileSystem {
 			return resolve(path);
 		}
 		return resolve(this.baseDir, path);
+	}
+
+	private throwIfDeleted(absPath: string): void {
+		if (this.deletedFiles.has(absPath)) {
+			const err = new Error(
+				`ENOENT: no such file or directory, '${absPath}'`
+			) as NodeJS.ErrnoException;
+			err.code = "ENOENT";
+			throw err;
+		}
 	}
 
 	// --- Read operations: delta → base fallback ---
@@ -80,6 +106,7 @@ export class OverlayAgentFS implements FileSystem {
 		options?: BufferEncoding | { encoding?: BufferEncoding }
 	): Promise<Buffer | string> {
 		const p = this.toAbsolute(path);
+		this.throwIfDeleted(p);
 		try {
 			if (options === undefined) {
 				return await this.delta.readFile(p);
@@ -102,6 +129,7 @@ export class OverlayAgentFS implements FileSystem {
 
 	async stat(path: string): Promise<Stats> {
 		const p = this.toAbsolute(path);
+		this.throwIfDeleted(p);
 		try {
 			return await this.delta.stat(p);
 		} catch {
@@ -111,6 +139,7 @@ export class OverlayAgentFS implements FileSystem {
 
 	async lstat(path: string): Promise<Stats> {
 		const p = this.toAbsolute(path);
+		this.throwIfDeleted(p);
 		try {
 			return await this.delta.lstat(p);
 		} catch {
@@ -120,6 +149,7 @@ export class OverlayAgentFS implements FileSystem {
 
 	async readdir(path: string): Promise<string[]> {
 		const p = this.toAbsolute(path);
+		this.throwIfDeleted(p);
 		const entries = new Set<string>();
 		let deltaErr: unknown;
 		let baseErr: unknown;
@@ -138,6 +168,15 @@ export class OverlayAgentFS implements FileSystem {
 
 		if (deltaErr && baseErr) {
 			throw baseErr;
+		}
+		for (const deleted of this.deletedFiles) {
+			const parent = resolve(p);
+			if (deleted.startsWith(`${parent}/`)) {
+				const name = deleted.slice(parent.length + 1);
+				if (!name.includes("/")) {
+					entries.delete(name);
+				}
+			}
 		}
 		return [...entries];
 	}
@@ -175,11 +214,21 @@ export class OverlayAgentFS implements FileSystem {
 		if (deltaErr && baseErr) {
 			throw baseErr;
 		}
+		for (const deleted of this.deletedFiles) {
+			const parent = resolve(p);
+			if (deleted.startsWith(`${parent}/`)) {
+				const name = deleted.slice(parent.length + 1);
+				if (!name.includes("/")) {
+					entryMap.delete(name);
+				}
+			}
+		}
 		return [...entryMap.values()];
 	}
 
 	async access(path: string): Promise<void> {
 		const p = this.toAbsolute(path);
+		this.throwIfDeleted(p);
 		try {
 			return await this.delta.access(p);
 		} catch {
@@ -189,6 +238,7 @@ export class OverlayAgentFS implements FileSystem {
 
 	async readlink(path: string): Promise<string> {
 		const p = this.toAbsolute(path);
+		this.throwIfDeleted(p);
 		try {
 			return await this.delta.readlink(p);
 		} catch {
@@ -204,6 +254,7 @@ export class OverlayAgentFS implements FileSystem {
 		options?: BufferEncoding | { encoding?: BufferEncoding }
 	): Promise<void> {
 		const p = this.toAbsolute(path);
+		this.deletedFiles.delete(p);
 		this.modifiedFiles.add(p);
 		return this.delta.writeFile(p, data, options);
 	}
@@ -213,15 +264,36 @@ export class OverlayAgentFS implements FileSystem {
 	}
 
 	async unlink(path: string): Promise<void> {
-		return this.delta.unlink(this.toAbsolute(path));
+		const p = this.toAbsolute(path);
+		this.deletedFiles.add(p);
+		this.modifiedFiles.delete(p);
+		try {
+			await this.delta.unlink(p);
+		} catch {
+			// delta にない場合でも削除追跡は成功
+		}
 	}
 
 	async rmdir(path: string): Promise<void> {
-		return this.delta.rmdir(this.toAbsolute(path));
+		const p = this.toAbsolute(path);
+		this.deletedFiles.add(p);
+		this.modifiedFiles.delete(p);
+		try {
+			await this.delta.rmdir(p);
+		} catch {
+			// delta にない場合でも削除追跡は成功
+		}
 	}
 
 	async rm(path: string, options?: { force?: boolean; recursive?: boolean }): Promise<void> {
-		return this.delta.rm(this.toAbsolute(path), options);
+		const p = this.toAbsolute(path);
+		this.deletedFiles.add(p);
+		this.modifiedFiles.delete(p);
+		try {
+			await this.delta.rm(p, options);
+		} catch {
+			// delta にない場合でも削除追跡は成功
+		}
 	}
 
 	async rename(oldPath: string, newPath: string): Promise<void> {
@@ -235,6 +307,8 @@ export class OverlayAgentFS implements FileSystem {
 		}
 		this.modifiedFiles.delete(op);
 		this.modifiedFiles.add(np);
+		this.deletedFiles.add(op);
+		this.deletedFiles.delete(np);
 		return this.delta.rename(op, np);
 	}
 
