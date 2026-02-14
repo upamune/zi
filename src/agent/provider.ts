@@ -8,6 +8,7 @@ export type ProviderName = "anthropic" | "openai" | "kimi";
 export interface StreamTextOptions {
 	messages: ModelMessage[];
 	systemPrompt?: string;
+	abortSignal?: AbortSignal;
 }
 
 export interface LLMProvider {
@@ -27,6 +28,7 @@ function createAnthropicProvider(model: string): LLMProvider {
 				model: anthropic(model),
 				messages: options.messages,
 				system: options.systemPrompt,
+				abortSignal: options.abortSignal,
 			});
 		},
 	};
@@ -41,6 +43,7 @@ function createOpenAIProvider(model: string): LLMProvider {
 				model: openai(model),
 				messages: options.messages,
 				system: options.systemPrompt,
+				abortSignal: options.abortSignal,
 			});
 		},
 	};
@@ -58,6 +61,7 @@ function createKimiProvider(model: string): LLMProvider {
 				model: kimi(model),
 				messages: options.messages,
 				system: options.systemPrompt,
+				abortSignal: options.abortSignal,
 			});
 		},
 	};

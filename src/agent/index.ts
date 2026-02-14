@@ -38,6 +38,7 @@ export class Agent {
 	private provider: LLMProvider;
 	private config: AgentConfig;
 	private messages: ModelMessage[] = [];
+	private abortController: AbortController | null = null;
 
 	constructor(options: AgentOptions) {
 		this.session = options.session;
@@ -46,8 +47,19 @@ export class Agent {
 		this.config = options.config ?? {};
 	}
 
-	async prompt(message: string): Promise<AgentResponse> {
+	abort(): void {
+		if (this.abortController) {
+			this.abortController.abort();
+		}
+	}
+
+	async prompt(message: string, signal?: AbortSignal): Promise<AgentResponse> {
 		this.messages.push({ role: "user", content: message });
+
+		this.abortController = new AbortController();
+		const combinedSignal = signal
+			? AbortSignal.any([signal, this.abortController.signal])
+			: this.abortController.signal;
 
 		const maxRetries = this.config.maxRetries ?? 3;
 		const maxToolIterations = this.config.maxToolIterations ?? 10;
@@ -60,15 +72,23 @@ export class Agent {
 				let iteration = 0;
 
 				while (iteration < maxToolIterations) {
+					if (combinedSignal.aborted) {
+						throw new Error("Aborted");
+					}
+
 					const stream = await this.provider.streamText({
 						messages: this.messages,
 						systemPrompt: this.config.systemPrompt,
+						abortSignal: combinedSignal,
 					});
 
 					let iterationContent = "";
 					const toolCalls: ToolCallResult[] = [];
 
 					for await (const chunk of stream.textStream) {
+						if (combinedSignal.aborted) {
+							throw new Error("Aborted");
+						}
 						iterationContent += chunk;
 					}
 
@@ -78,12 +98,17 @@ export class Agent {
 					if (calls.length === 0) {
 						content = iterationContent;
 						this.messages.push({ role: "assistant", content: iterationContent });
+						this.abortController = null;
 						return { content, toolCalls: allToolCalls.length > 0 ? allToolCalls : undefined };
 					}
 
 					const toolInvocations = [];
 
 					for (const call of calls) {
+						if (combinedSignal.aborted) {
+							throw new Error("Aborted");
+						}
+
 						const toolName = call.toolName as ToolName;
 						const tool = this.tools.get(toolName);
 
@@ -128,16 +153,23 @@ export class Agent {
 
 				content = "Max tool iterations reached";
 				this.messages.push({ role: "assistant", content });
+				this.abortController = null;
 				return { content, toolCalls: allToolCalls };
 			} catch (error) {
+				if (combinedSignal.aborted) {
+					this.abortController = null;
+					throw new Error("Aborted");
+				}
 				retries++;
 				if (retries >= maxRetries) {
+					this.abortController = null;
 					throw error;
 				}
 				await new Promise((resolve) => setTimeout(resolve, 1000 * retries));
 			}
 		}
 
+		this.abortController = null;
 		throw new Error("Max retries exceeded");
 	}
 
