@@ -60,7 +60,10 @@ export class Agent {
 				let iteration = 0;
 
 				while (iteration < maxToolIterations) {
-					const stream = await this.provider.streamText(this.messages);
+					const stream = await this.provider.streamText({
+						messages: this.messages,
+						systemPrompt: this.config.systemPrompt,
+					});
 
 					let iterationContent = "";
 					const toolCalls: ToolCallResult[] = [];

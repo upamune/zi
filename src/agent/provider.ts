@@ -5,10 +5,15 @@ import type { Config } from "@/config/index.js";
 
 export type ProviderName = "anthropic" | "openai" | "kimi";
 
+export interface StreamTextOptions {
+	messages: ModelMessage[];
+	systemPrompt?: string;
+}
+
 export interface LLMProvider {
 	name: ProviderName;
 	model: string;
-	streamText(messages: ModelMessage[]): Promise<StreamTextResult<never, never>>;
+	streamText(options: StreamTextOptions): Promise<StreamTextResult<never, never>>;
 }
 
 const KIMI_BASE_URL = "https://api.moonshot.cn/v1";
@@ -17,10 +22,11 @@ function createAnthropicProvider(model: string): LLMProvider {
 	return {
 		name: "anthropic",
 		model,
-		async streamText(messages: ModelMessage[]) {
+		async streamText(options: StreamTextOptions) {
 			return streamText({
 				model: anthropic(model),
-				messages,
+				messages: options.messages,
+				system: options.systemPrompt,
 			});
 		},
 	};
@@ -30,10 +36,11 @@ function createOpenAIProvider(model: string): LLMProvider {
 	return {
 		name: "openai",
 		model,
-		async streamText(messages: ModelMessage[]) {
+		async streamText(options: StreamTextOptions) {
 			return streamText({
 				model: openai(model),
-				messages,
+				messages: options.messages,
+				system: options.systemPrompt,
 			});
 		},
 	};
@@ -46,10 +53,11 @@ function createKimiProvider(model: string): LLMProvider {
 	return {
 		name: "kimi",
 		model,
-		async streamText(messages: ModelMessage[]) {
+		async streamText(options: StreamTextOptions) {
 			return streamText({
 				model: kimi(model),
-				messages,
+				messages: options.messages,
+				system: options.systemPrompt,
 			});
 		},
 	};
