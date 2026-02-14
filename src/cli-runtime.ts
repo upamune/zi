@@ -19,10 +19,7 @@ const PROVIDER_ENV_MAP: Record<string, string> = {
 	kimi: "KIMI_API_KEY",
 };
 
-export function validateApiKey(
-	provider: string,
-	env: NodeJS.ProcessEnv = process.env
-): void {
+export function validateApiKey(provider: string, env: NodeJS.ProcessEnv = process.env): void {
 	const envVar = PROVIDER_ENV_MAP[provider];
 	if (!envVar) {
 		return;

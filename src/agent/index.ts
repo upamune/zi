@@ -249,10 +249,7 @@ export class Agent {
 	}
 }
 
-const NON_RETRYABLE_ERROR_NAMES = new Set([
-	"AI_LoadAPIKeyError",
-	"MissingApiKeyError",
-]);
+const NON_RETRYABLE_ERROR_NAMES = new Set(["AI_LoadAPIKeyError", "MissingApiKeyError"]);
 
 export function isNonRetryableError(error: unknown): boolean {
 	if (error instanceof Error && NON_RETRYABLE_ERROR_NAMES.has(error.name)) {
