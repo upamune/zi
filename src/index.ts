@@ -15,6 +15,7 @@ import {
 } from "./cli-runtime.js";
 import { loadConfig } from "./config/index.js";
 import { buildPromptFromInputs, expandFileArgs, readStdinIfAvailable } from "./input-ingestion.js";
+import { runSubcommand } from "./subcommands.js";
 import { createToolRegistry } from "./tools/index.js";
 import { createTui } from "./tui/index.js";
 
@@ -29,6 +30,16 @@ async function main(): Promise<void> {
 	if (args.version) {
 		printVersion();
 		process.exit(0);
+	}
+
+	if (args.command) {
+		try {
+			await runSubcommand(args.command);
+			process.exit(0);
+		} catch (error) {
+			console.error("Error:", error instanceof Error ? error.message : String(error));
+			process.exit(1);
+		}
 	}
 
 	const config = await loadConfig();

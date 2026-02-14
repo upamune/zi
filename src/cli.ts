@@ -1,6 +1,12 @@
 import { parseArgs } from "node:util";
 import { NAME, VERSION } from "./config/index.js";
 
+export interface CliCommand {
+	name: "install" | "remove" | "update" | "list" | "config";
+	source: string | null;
+	local: boolean;
+}
+
 export interface CliArgs {
 	continue: boolean;
 	resume: boolean;
@@ -23,6 +29,7 @@ export interface CliArgs {
 	version: boolean;
 	prompt: string | null;
 	promptArgs: string[];
+	command: CliCommand | null;
 }
 
 export function parseCliArgs(args: string[] = process.argv.slice(2)): CliArgs {
@@ -100,11 +107,18 @@ export function parseCliArgs(args: string[] = process.argv.slice(2)): CliArgs {
 				short: "v",
 				default: false,
 			},
+			local: {
+				type: "boolean",
+				short: "l",
+				default: false,
+			},
 		},
 		allowPositionals: true,
 	});
 
-	const prompt = positionals.length > 0 ? positionals.join(" ") : null;
+	const command = parseCommand(positionals, values.local);
+	const promptArgs = command ? [] : [...positionals];
+	const prompt = promptArgs.length > 0 ? promptArgs.join(" ") : null;
 
 	return {
 		continue: values.continue,
@@ -128,7 +142,24 @@ export function parseCliArgs(args: string[] = process.argv.slice(2)): CliArgs {
 		help: values.help,
 		version: values.version,
 		prompt,
-		promptArgs: [...positionals],
+		promptArgs,
+		command,
+	};
+}
+
+function parseCommand(positionals: string[], local: boolean): CliCommand | null {
+	const name = positionals[0];
+	if (!name || !["install", "remove", "update", "list", "config"].includes(name)) {
+		return null;
+	}
+	const source = positionals[1] ?? null;
+	if ((name === "install" || name === "remove") && !source) {
+		throw new Error(`${name} requires <source>`);
+	}
+	return {
+		name: name as CliCommand["name"],
+		source,
+		local,
 	};
 }
 
@@ -137,6 +168,14 @@ export function printHelp(): void {
 
 USAGE:
   zi [OPTIONS] [PROMPT]
+  zi <COMMAND> [ARGS]
+
+COMMANDS:
+  install <source> [-l, --local]
+  remove <source> [-l, --local]
+  update [source]
+  list
+  config
 
 OPTIONS:
   -c, --continue      Continue from last session
@@ -167,6 +206,7 @@ EXAMPLES:
   zi --provider openai --model gpt-4 "Explain this code"
   zi --resume --session abc123 "Continue from session"
   zi --list-models --provider anthropic
+  zi install github:owner/repo
 `);
 }
 

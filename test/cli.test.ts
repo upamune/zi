@@ -3,6 +3,48 @@ import { parseCliArgs, printHelp, printVersion } from "../src/cli.js";
 import { NAME, VERSION } from "../src/config/index.js";
 
 describe("parseCliArgs", () => {
+	describe("subcommands", () => {
+		test("should parse install command", () => {
+			const result = parseCliArgs(["install", "github:owner/repo"]);
+			expect(result.command).toEqual({
+				name: "install",
+				source: "github:owner/repo",
+				local: false,
+			});
+		});
+
+		test("should parse remove command with local flag", () => {
+			const result = parseCliArgs(["remove", "github:owner/repo", "--local"]);
+			expect(result.command).toEqual({
+				name: "remove",
+				source: "github:owner/repo",
+				local: true,
+			});
+		});
+
+		test("should parse update command without source", () => {
+			const result = parseCliArgs(["update"]);
+			expect(result.command).toEqual({
+				name: "update",
+				source: null,
+				local: false,
+			});
+		});
+
+		test("should parse list command", () => {
+			const result = parseCliArgs(["list"]);
+			expect(result.command).toEqual({
+				name: "list",
+				source: null,
+				local: false,
+			});
+		});
+
+		test("should throw when install source is missing", () => {
+			expect(() => parseCliArgs(["install"])).toThrow("install requires <source>");
+		});
+	});
+
 	describe("positional prompt arguments", () => {
 		test("should parse single word prompt", () => {
 			const result = parseCliArgs(["hello"]);
@@ -343,6 +385,7 @@ describe("parseCliArgs", () => {
 				version: false,
 				prompt: null,
 				promptArgs: [],
+				command: null,
 			});
 		});
 	});
@@ -366,6 +409,14 @@ describe("help and version output", () => {
 
 USAGE:
   zi [OPTIONS] [PROMPT]
+  zi <COMMAND> [ARGS]
+
+COMMANDS:
+  install <source> [-l, --local]
+  remove <source> [-l, --local]
+  update [source]
+  list
+  config
 
 OPTIONS:
   -c, --continue      Continue from last session
@@ -396,6 +447,7 @@ EXAMPLES:
   zi --provider openai --model gpt-4 "Explain this code"
   zi --resume --session abc123 "Continue from session"
   zi --list-models --provider anthropic
+  zi install github:owner/repo
 `,
 		]);
 	});
