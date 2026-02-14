@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "b61b922a169f",
+  "strategy": "manual-commit",
+  "branch": "feat/bash-fs-overlay-unification",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/agent/session.ts",
+    "src/fs/bash-fs-adapter.ts",
+    "src/fs/overlay-agentfs.ts",
+    "src/index.ts",
+    "src/subcommands.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b6/1b922a169f/0/metadata.json",
+      "transcript": "/b6/1b922a169f/0/full.jsonl",
+      "context": "/b6/1b922a169f/0/context.md",
+      "content_hash": "/b6/1b922a169f/0/content_hash.txt",
+      "prompt": "/b6/1b922a169f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 161,
+    "cache_creation_tokens": 125814,
+    "cache_read_tokens": 3211220,
+    "output_tokens": 4711,
+    "api_call_count": 46
+  }
+}

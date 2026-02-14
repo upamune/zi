@@ -1,0 +1,157 @@
+Implement the following plan:
+
+# Bash FS 統一: OverlayAgentFS を bash でも使う
+
+## Context
+
+zi のセッション終了時に apply コマンドが表示されないバグ。
+根本原因: bash ツールが独立した `OverlayFs` (just-bash, インメモリ) を使い、セッションの `OverlayAgentFS` (AgentFS SQLite) と分離している。
+bash 経由の変更 (sed, rm, echo, cp, mv) は追跡も永続化もされず、apply できない。
+
+**目標**: bash も `OverlayAgentFS` を通すように統一し、全操作を追跡・永続化・apply 可能にする。
+
+## 変更ファイル
+
+1. `src/fs/overlay-agentfs.ts` — 削除追跡 + 読み取り時の削除チェック
+2. `src/fs/bash-fs-adapter.ts` — **新規** IFileSystem アダプター
+3. `src/index.ts` — bash を新アダプター経由に変更 + shutdown 出力更新
+4. `src/agent/session.ts` — deletedFiles 公開 + manifest 更新
+5. `src/subcommands.ts` — apply で削除対応
+
+## Step 1: OverlayAgentFS に削除追跡を追加
+
+**ファイル**: `src/fs/overlay-agentfs.ts`
+
+- `deletedFiles: Set<string>` を追加
+- `unlink`, `rm`, `rmdir` で `deletedFiles.add(path)` + `modifiedFiles.delete(path)`
+- 削除されたファイルを delta から除去 (存在すれば)
+- 読み取り系メソッド (`readFile`, `stat`, `lstat`, `readdir`, `access`) で `deletedFiles` を先にチェック → ENOENT
+- `readdir` は delta + 実FS のマージ結果から `deletedFiles` を除外
+- `writeFile` で `deletedFiles.delete(path)` (上書き = 復活)
+- `getDeletedFiles(): string[]` メソッド追加
+- `persistManifest()` を modified + deleted 両方保存するように変更
+
+## Step 2: IFileSystem アダプター作成
+
+**ファイル**: `src/fs/bash-fs-adapter.ts` (新規)
+
+`OverlayAgentFS` (agentfs-sdk の `FileSystem`) → `IFileSystem` (just-bash) のアダプター。
+`AgentFsWrapper` (agentfs-sdk) を参考にしつつ、native binding を避けて自前実装。
+
+主なメソッドマッピング:
+
+| IFileSystem | 実装 |
+|---|---|
+| `readFile(path, opts?)` → `string` | `overlay.readFile(path, encoding)` |
+| `readFileBuffer(path)` → `Uint8Array` | `overlay.readFile(path)` → Buffer → Uint8Array |
+| `writeFile(path, content, opts?)` | `overlay.writeFile(path, data, opts)` |
+| `appendFile(path, content, opts?)` | read + concat + write |
+| `exists(path)` → `boolean` | `overlay.access(path)` try/catch |
+| `stat(path)` → `FsStat` | `overlay.stat(path)` → Stats → FsStat 変換 |
+| `lstat(path)` → `FsStat` | `overlay.lstat(path)` → Stats → FsStat 変換 |
+| `mkdir(path, opts?)` | `overlay.mkdir(path)` + recursive 対応 |
+| `readdir(path)` → `string[]` | `overlay.readdir(path)` |
+| `rm(path, opts?)` | `overlay.rm(path, opts)` |
+| `cp(src, dest, opts?)` | ファイル: `overlay.copyFile`, ディレクトリ: 再帰 |
+| `mv(src, dest)` | `overlay.rename(src, dest)` |
+| `resolvePath(base, path)` | `path.resolve(base, path)` |
+| `getAllPaths()` | `[]` (optional、readdir fallback で動く) |
+| `chmod(path, mode)` | no-op (存在確認のみ) |
+| `symlink(target, linkPath)` | `overlay.symlink(target, linkPath)` |
+| `link(existing, new)` | `overlay.copyFile(existing, new)` |
+| `readlink(path)` | `overlay.readlink(path)` |
+| `realpath(path)` | readlink 再帰解決 |
+| `utimes(path, atime, mtime)` | no-op |
+| `readdirWithFileTypes?(path)` | `overlay.readdirPlus(path)` → DirentEntry 変換 |
+
+Stats 変換: agentfs の `Stats` (mtime は ms epoch, `isFile()` メソッド) → just-bash の `FsStat` (mtime は Date, `isFile` boolean)
+
+## Step 3: index.ts を更新
+
+**ファイル**: `src/index.ts`
+
+- `import { OverlayFs } from "just-bash"` を削除
+- `import { BashFsAdapter } from "./fs/bash-fs-adapter.js"` を追加
+- `new OverlayFs({ root: cwd, mountPoint: cwd })` を `new BashFsAdapter(session.fs as OverlayAgentFS, cwd)` に置換
+- `handleShutdown`: `session.getDeletedFiles()` も取得し、`D` ステータスで表示
+- apply メッセージは modified + deleted がある場合に表示
+
+## Step 4: session.ts を更新
+
+**ファイル**: `src/agent/session.ts`
+
+- `Session` interface に `getDeletedFiles(): string[]` を追加
+- `createSession` / `loadSession` で `overlay.getDeletedFiles()` を公開
+- `ApplySession` に `deletedFiles: string[]` を追加
+- `openSessionForApply` で manifest から deleted も読み込む
+
+## Step 5: subcommands.ts を更新
+
+**ファイル**: `src/subcommands.ts`
+
+- `applySession` で deleted ファイルを `D` として表示
+- apply 実行時に `fs.unlink(path)` で削除を適用
+
+## Step 6: manifest フォーマット更新
+
+現在: `["path1", "path2"]` (modified のみ)
+変更後: `{ "modified": ["path1"], "deleted": ["path3"] }`
+後方互換: `loadManifest` で配列の場合は modified として扱う
+
+## 検証方法
+
+```bash
+bun build ./src/index.ts --compile --outfile dist/zi
+
+# テスト 1: bash でファイル作成 → apply で反映されるか
+./dist/zi
+> echo "test" > test.txt
+> (Ctrl-D)
+# → "Session ended" + apply 指示が出力される
+./dist/zi apply <session-id>
+# → test.txt が apply される
+
+# テスト 2: bash でファイル削除 → apply で反映されるか
+./dist/zi
+> rm some-file.txt
+> (Ctrl-D)
+# → "D some-file.txt" が表示される
+./dist/zi apply <session-id>
+# → some-file.txt が削除される
+
+# テスト 3: bash sed でファイル編集
+./dist/zi
+> sed -i 's/old/new/' file.txt
+> (Ctrl-D)
+# → "M file.txt" が表示される
+
+# テスト 4: write/edit ツール経由は引き続き動作
+./dist/zi
+> ファイルを編集して (AI が write/edit ツールを使う)
+> (Ctrl-D)
+# → 変更が表示される
+
+# テスト 5: 既存テスト
+bun test
+```
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/masato.yamamoto/.REDACTED.jsonl
+
+If this plan can be broken down into multiple independent tasks, consider using the TeamCreate tool to create a team and parallelize the work.
+
+---
+
+commit
+
+---
+
+[Request interrupted by user]
+
+---
+
+branch 切って
+
+---
+
+commit して, push して、 create a pr
