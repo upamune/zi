@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createProvider } from "../src/agent/provider.js";
+import { createProvider, getModelsByProvider } from "../src/agent/provider.js";
 import type { Config } from "../src/config/index.js";
 
 describe("Provider", () => {
@@ -90,6 +90,20 @@ describe("Provider", () => {
 
 			const provider = createProvider(config);
 			expect(provider.model).toBe("moonshot-v1-32k");
+		});
+	});
+
+	describe("getModelsByProvider", () => {
+		test("should return anthropic models", () => {
+			expect(getModelsByProvider("anthropic").length).toBeGreaterThan(0);
+		});
+
+		test("should return openai models", () => {
+			expect(getModelsByProvider("openai").length).toBeGreaterThan(0);
+		});
+
+		test("should return kimi models", () => {
+			expect(getModelsByProvider("kimi").length).toBeGreaterThan(0);
 		});
 	});
 });

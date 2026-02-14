@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { applyApiKeyOverride, resolveOutputMode, resolveSession } from "../src/cli-runtime.js";
+import {
+	applyApiKeyOverride,
+	filterModels,
+	resolveOutputMode,
+	resolveSession,
+	resolveThinkingLevel,
+	resolveToolSelection,
+} from "../src/cli-runtime.js";
 
 describe("cli-runtime", () => {
 	describe("resolveOutputMode", () => {
@@ -70,6 +77,64 @@ describe("cli-runtime", () => {
 				sessionId: "bar",
 				shouldResume: true,
 			});
+		});
+	});
+
+	describe("resolveToolSelection", () => {
+		test("should return all tools by default", () => {
+			expect(resolveToolSelection({ tools: null, noTools: false }).enabledTools).toEqual([
+				"read",
+				"write",
+				"edit",
+				"bash",
+			]);
+		});
+
+		test("should return empty list when noTools is true", () => {
+			expect(resolveToolSelection({ tools: null, noTools: true }).enabledTools).toEqual([]);
+		});
+
+		test("should parse selected tools", () => {
+			expect(resolveToolSelection({ tools: "read,bash", noTools: false }).enabledTools).toEqual([
+				"read",
+				"bash",
+			]);
+		});
+
+		test("should reject invalid combinations", () => {
+			expect(() => resolveToolSelection({ tools: "read", noTools: true })).toThrow(
+				"Cannot use --tools and --no-tools together"
+			);
+		});
+	});
+
+	describe("resolveThinkingLevel", () => {
+		test("should allow valid level", () => {
+			expect(resolveThinkingLevel("minimal")).toBe("minimal");
+		});
+
+		test("should return null when omitted", () => {
+			expect(resolveThinkingLevel(null)).toBeNull();
+		});
+
+		test("should reject invalid level", () => {
+			expect(() => resolveThinkingLevel("max" as "off")).toThrow("Invalid thinking level: max");
+		});
+	});
+
+	describe("filterModels", () => {
+		test("should keep all models when no pattern", () => {
+			expect(filterModels(["gpt-4o", "o3-mini"], null)).toEqual(["gpt-4o", "o3-mini"]);
+		});
+
+		test("should support wildcard matching", () => {
+			expect(filterModels(["gpt-4o", "o3-mini"], "gpt-*")).toEqual(["gpt-4o"]);
+		});
+
+		test("should support contains matching", () => {
+			expect(filterModels(["claude-sonnet-4-5", "gpt-4o"], "sonnet")).toEqual([
+				"claude-sonnet-4-5",
+			]);
 		});
 	});
 });

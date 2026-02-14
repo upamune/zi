@@ -63,6 +63,20 @@ describe("ToolRegistry", () => {
 			expect(registry.get("edit")?.name).toBe("edit");
 			expect(registry.get("bash")?.name).toBe("bash");
 		});
+
+		test("should register only selected tools", () => {
+			const registry = createToolRegistry(
+				mockBash,
+				mockFs as unknown as Parameters<typeof createToolRegistry>[1],
+				mockTools,
+				["read", "bash"]
+			);
+
+			expect(registry.get("read")).toBeDefined();
+			expect(registry.get("bash")).toBeDefined();
+			expect(registry.get("write")).toBeUndefined();
+			expect(registry.get("edit")).toBeUndefined();
+		});
 	});
 
 	describe("get", () => {

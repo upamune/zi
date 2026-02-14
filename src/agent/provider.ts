@@ -5,6 +5,12 @@ import type { Config } from "@/config/index.js";
 
 export type ProviderName = "anthropic" | "openai" | "kimi";
 
+const MODEL_CATALOG: Record<ProviderName, string[]> = {
+	anthropic: ["claude-sonnet-4-5", "claude-opus-4-1", "claude-haiku-3-5"],
+	openai: ["gpt-4.1", "gpt-4o", "gpt-4o-mini", "o3-mini"],
+	kimi: ["moonshot-v1-8k", "moonshot-v1-32k", "kimi-k2-0905-preview"],
+};
+
 export interface StreamTextOptions {
 	messages: ModelMessage[];
 	systemPrompt?: string;
@@ -82,4 +88,8 @@ export function createProvider(config: Config): LLMProvider {
 		default:
 			throw new Error(`Unknown provider: ${config.provider}`);
 	}
+}
+
+export function getModelsByProvider(provider: ProviderName): string[] {
+	return [...MODEL_CATALOG[provider]];
 }

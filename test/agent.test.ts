@@ -263,6 +263,30 @@ describe("Agent", () => {
 			expect(response.content).toBe("Max tool iterations reached");
 			expect(response.toolCalls).toHaveLength(3);
 		});
+
+		test("should append thinking level to system prompt", async () => {
+			const providerSpy = mock(async (options: { systemPrompt?: string }) => {
+				expect(options.systemPrompt).toContain("Thinking level: high");
+				return createMockStreamResult("ok");
+			});
+
+			const agent = new Agent({
+				session: mockSession,
+				tools: mockTools,
+				provider: {
+					name: "anthropic",
+					model: "claude-sonnet-4-5",
+					streamText: providerSpy,
+				},
+				config: {
+					systemPrompt: "You are a helpful assistant",
+					thinking: "high",
+				},
+			});
+
+			const response = await agent.prompt("Hi");
+			expect(response.content).toBe("ok");
+		});
 	});
 
 	describe("getMessages", () => {

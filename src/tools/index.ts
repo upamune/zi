@@ -37,13 +37,26 @@ class ToolRegistryImpl implements ToolRegistry {
 	}
 }
 
-export function createToolRegistry(bash: Bash, fs: Filesystem, tools: ToolCalls): ToolRegistry {
+export function createToolRegistry(
+	bash: Bash,
+	fs: Filesystem,
+	tools: ToolCalls,
+	enabledTools: ToolName[] = ["read", "write", "edit", "bash"]
+): ToolRegistry {
 	const registry = new ToolRegistryImpl();
 
-	registry.register(createReadTool(fs, tools) as BaseTool);
-	registry.register(createWriteTool(fs, tools) as BaseTool);
-	registry.register(createEditTool(fs, tools) as BaseTool);
-	registry.register(createBashTool(bash, tools) as BaseTool);
+	if (enabledTools.includes("read")) {
+		registry.register(createReadTool(fs, tools) as BaseTool);
+	}
+	if (enabledTools.includes("write")) {
+		registry.register(createWriteTool(fs, tools) as BaseTool);
+	}
+	if (enabledTools.includes("edit")) {
+		registry.register(createEditTool(fs, tools) as BaseTool);
+	}
+	if (enabledTools.includes("bash")) {
+		registry.register(createBashTool(bash, tools) as BaseTool);
+	}
 
 	return registry;
 }

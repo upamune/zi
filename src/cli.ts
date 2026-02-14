@@ -8,6 +8,11 @@ export interface CliArgs {
 	apiKey: string | null;
 	session: string | null;
 	sessionDir: string | null;
+	tools: string | null;
+	noTools: boolean;
+	thinking: "off" | "minimal" | "low" | "medium" | "high" | null;
+	listModels: boolean;
+	models: string | null;
 	provider: string | null;
 	model: string | null;
 	systemPrompt: string | null;
@@ -44,6 +49,23 @@ export function parseCliArgs(args: string[] = process.argv.slice(2)): CliArgs {
 				type: "string",
 			},
 			"session-dir": {
+				type: "string",
+			},
+			tools: {
+				type: "string",
+			},
+			"no-tools": {
+				type: "boolean",
+				default: false,
+			},
+			thinking: {
+				type: "string",
+			},
+			"list-models": {
+				type: "boolean",
+				default: false,
+			},
+			models: {
 				type: "string",
 			},
 			provider: {
@@ -90,6 +112,12 @@ export function parseCliArgs(args: string[] = process.argv.slice(2)): CliArgs {
 		apiKey: values["api-key"] ?? null,
 		session: values.session ?? null,
 		sessionDir: values["session-dir"] ?? null,
+		tools: values.tools ?? null,
+		noTools: values["no-tools"],
+		thinking:
+			(values.thinking as "off" | "minimal" | "low" | "medium" | "high" | undefined) ?? null,
+		listModels: values["list-models"],
+		models: values.models ?? null,
 		provider: values.provider ?? null,
 		model: values.model ?? null,
 		systemPrompt: values["system-prompt"] ?? null,
@@ -115,6 +143,11 @@ OPTIONS:
   --api-key <KEY>     Override provider API key
   --session <ID>      Session ID to load or create
   --session-dir <DIR> Session directory root
+  --tools <LIST>      Enable only selected tools (comma-separated)
+  --no-tools          Disable all tools
+  --thinking <LEVEL>  Thinking level (off, minimal, low, medium, high)
+  --list-models       List models for selected provider
+  --models <PATTERNS> Comma-separated model filter patterns
   --provider <NAME>   LLM provider (anthropic, openai, kimi)
   --model <MODEL>     Model to use
   --system-prompt <TEXT>         Replace default system prompt
@@ -129,6 +162,7 @@ EXAMPLES:
   zi -c "Add error handling"
   zi --provider openai --model gpt-4 "Explain this code"
   zi --resume --session abc123 "Continue from session"
+  zi --list-models --provider anthropic
 `);
 }
 

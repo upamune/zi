@@ -1,8 +1,9 @@
 import { tool } from "ai";
 import { z } from "zod";
+import type { ToolName } from "./index.js";
 
-export function getToolDefinitions() {
-	return {
+export function getToolDefinitions(enabledTools: ToolName[] = ["read", "write", "edit", "bash"]) {
+	const definitions = {
 		read: tool({
 			description:
 				"Read the contents of a file. Use offset/limit for large files. When you need the full file, continue with offset until complete.",
@@ -45,4 +46,8 @@ export function getToolDefinitions() {
 			}),
 		}),
 	};
+
+	return Object.fromEntries(
+		Object.entries(definitions).filter(([name]) => enabledTools.includes(name as ToolName))
+	);
 }

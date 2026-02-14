@@ -131,6 +131,54 @@ describe("parseCliArgs", () => {
 		});
 	});
 
+	describe("--tools and --no-tools flags", () => {
+		test("should parse --tools flag", () => {
+			const result = parseCliArgs(["--tools", "read,write"]);
+			expect(result.tools).toBe("read,write");
+		});
+
+		test("should parse --no-tools flag", () => {
+			const result = parseCliArgs(["--no-tools"]);
+			expect(result.noTools).toBe(true);
+		});
+
+		test("should default tools flags", () => {
+			const result = parseCliArgs([]);
+			expect(result.tools).toBeNull();
+			expect(result.noTools).toBe(false);
+		});
+	});
+
+	describe("--thinking flag", () => {
+		test("should parse --thinking flag", () => {
+			const result = parseCliArgs(["--thinking", "low"]);
+			expect(result.thinking).toBe("low");
+		});
+
+		test("should default thinking to null", () => {
+			const result = parseCliArgs([]);
+			expect(result.thinking).toBeNull();
+		});
+	});
+
+	describe("--list-models and --models flags", () => {
+		test("should parse --list-models flag", () => {
+			const result = parseCliArgs(["--list-models"]);
+			expect(result.listModels).toBe(true);
+		});
+
+		test("should parse --models flag", () => {
+			const result = parseCliArgs(["--models", "gpt-*"]);
+			expect(result.models).toBe("gpt-*");
+		});
+
+		test("should default model listing flags", () => {
+			const result = parseCliArgs([]);
+			expect(result.listModels).toBe(false);
+			expect(result.models).toBeNull();
+		});
+	});
+
 	describe("--provider flag", () => {
 		test("should parse --provider flag", () => {
 			const result = parseCliArgs(["--provider", "openai"]);
@@ -277,6 +325,11 @@ describe("parseCliArgs", () => {
 				apiKey: null,
 				session: null,
 				sessionDir: null,
+				tools: null,
+				noTools: false,
+				thinking: null,
+				listModels: false,
+				models: null,
 				provider: null,
 				model: null,
 				systemPrompt: null,
@@ -317,6 +370,11 @@ OPTIONS:
   --api-key <KEY>     Override provider API key
   --session <ID>      Session ID to load or create
   --session-dir <DIR> Session directory root
+  --tools <LIST>      Enable only selected tools (comma-separated)
+  --no-tools          Disable all tools
+  --thinking <LEVEL>  Thinking level (off, minimal, low, medium, high)
+  --list-models       List models for selected provider
+  --models <PATTERNS> Comma-separated model filter patterns
   --provider <NAME>   LLM provider (anthropic, openai, kimi)
   --model <MODEL>     Model to use
   --system-prompt <TEXT>         Replace default system prompt
@@ -331,6 +389,7 @@ EXAMPLES:
   zi -c "Add error handling"
   zi --provider openai --model gpt-4 "Explain this code"
   zi --resume --session abc123 "Continue from session"
+  zi --list-models --provider anthropic
 `,
 		]);
 	});

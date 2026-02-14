@@ -1,11 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { Bash } from "just-bash";
 import { Agent } from "./agent/index.js";
-import { createProvider, type ProviderName } from "./agent/provider.js";
+import { createProvider, getModelsByProvider, type ProviderName } from "./agent/provider.js";
 import { createSession, listSessions, loadSession, sessionExists } from "./agent/session.js";
 import { buildSystemPrompt } from "./agent/system-prompt.js";
 import { parseCliArgs, printHelp, printVersion } from "./cli.js";
-import { applyApiKeyOverride, resolveOutputMode, resolveSession } from "./cli-runtime.js";
+import {
+	applyApiKeyOverride,
+	filterModels,
+	resolveOutputMode,
+	resolveSession,
+	resolveThinkingLevel,
+	resolveToolSelection,
+} from "./cli-runtime.js";
 import { loadConfig } from "./config/index.js";
 import { createToolRegistry } from "./tools/index.js";
 import { createTui } from "./tui/index.js";
@@ -38,10 +45,36 @@ async function main(): Promise<void> {
 	if (args.model) {
 		config.model = args.model;
 	}
+	const thinkingLevel = resolveThinkingLevel(args.thinking);
+	if (thinkingLevel) {
+		config.thinking = thinkingLevel;
+	}
+
+	const availableModels = filterModels(getModelsByProvider(config.provider), args.models);
+	if (args.listModels) {
+		if (availableModels.length === 0) {
+			console.error("No models matched the provided --models filter");
+			process.exit(1);
+		}
+		for (const model of availableModels) {
+			console.log(model);
+		}
+		process.exit(0);
+	}
+	if (args.models && !availableModels.includes(config.model)) {
+		console.error(
+			`Selected model "${config.model}" is not allowed by --models filter: ${args.models}`
+		);
+		process.exit(1);
+	}
 
 	applyApiKeyOverride(config.provider, args.apiKey);
 
 	const outputMode = resolveOutputMode(args);
+	const selectedTools = resolveToolSelection({
+		tools: args.tools,
+		noTools: args.noTools,
+	});
 	const baseDir = args.sessionDir ?? undefined;
 	const resolvedSession = resolveSession({
 		session: args.session,
@@ -69,7 +102,7 @@ async function main(): Promise<void> {
 			: await createSession(sessionId, baseDir);
 
 	const bash = new Bash();
-	const tools = createToolRegistry(bash, session.fs, session.tools);
+	const tools = createToolRegistry(bash, session.fs, session.tools, selectedTools.enabledTools);
 	const provider = createProvider(config);
 
 	const agent = new Agent({
@@ -82,6 +115,8 @@ async function main(): Promise<void> {
 				appendSystemPrompt: args.appendSystemPrompt ?? undefined,
 			}),
 			maxRetries: 3,
+			enabledTools: selectedTools.enabledTools,
+			thinking: config.thinking,
 		},
 	});
 

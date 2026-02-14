@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 import type { CliArgs } from "./cli.js";
+import type { ToolName } from "./tools/index.js";
 
 export type OutputMode = "text" | "json" | "rpc";
 
@@ -70,4 +71,81 @@ function normalizeSession(value: string): string {
 		return name.slice(0, -3);
 	}
 	return name;
+}
+
+const TOOL_NAMES: ToolName[] = ["read", "write", "edit", "bash"];
+const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high"] as const;
+
+export interface ToolSelectionResult {
+	enabledTools: ToolName[];
+}
+
+export function resolveToolSelection(
+	args: Pick<CliArgs, "tools" | "noTools">
+): ToolSelectionResult {
+	if (args.noTools && args.tools) {
+		throw new Error("Cannot use --tools and --no-tools together");
+	}
+	if (args.noTools) {
+		return { enabledTools: [] };
+	}
+	if (!args.tools) {
+		return { enabledTools: [...TOOL_NAMES] };
+	}
+	const selected = args.tools
+		.split(",")
+		.map((tool) => tool.trim())
+		.filter((tool) => tool.length > 0);
+	if (selected.length === 0) {
+		throw new Error("--tools must include at least one tool name");
+	}
+	const invalid = selected.filter((tool) => !TOOL_NAMES.includes(tool as ToolName));
+	if (invalid.length > 0) {
+		throw new Error(`Invalid tool name(s): ${invalid.join(", ")}`);
+	}
+	return {
+		enabledTools: [...new Set(selected)] as ToolName[],
+	};
+}
+
+export function resolveThinkingLevel(
+	thinking: CliArgs["thinking"]
+): "off" | "minimal" | "low" | "medium" | "high" | null {
+	if (!thinking) {
+		return null;
+	}
+	if (!THINKING_LEVELS.includes(thinking)) {
+		throw new Error(
+			`Invalid thinking level: ${thinking}. Must be one of: ${THINKING_LEVELS.join(", ")}`
+		);
+	}
+	return thinking;
+}
+
+export function filterModels(models: string[], patterns: string | null): string[] {
+	if (!patterns) {
+		return models;
+	}
+	const entries = patterns
+		.split(",")
+		.map((pattern) => pattern.trim())
+		.filter((pattern) => pattern.length > 0);
+	if (entries.length === 0) {
+		return models;
+	}
+	return models.filter((model) =>
+		entries.some((entry) => matchPattern(model.toLowerCase(), entry.toLowerCase()))
+	);
+}
+
+function matchPattern(value: string, pattern: string): boolean {
+	if (pattern === "*") {
+		return true;
+	}
+	if (!pattern.includes("*")) {
+		return value.includes(pattern);
+	}
+	const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+	const regex = new RegExp(`^${escaped}$`);
+	return regex.test(value);
 }

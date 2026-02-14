@@ -9,6 +9,8 @@ export interface AgentConfig {
 	systemPrompt?: string;
 	maxRetries?: number;
 	maxToolIterations?: number;
+	enabledTools?: ToolName[];
+	thinking?: "off" | "minimal" | "low" | "medium" | "high";
 }
 
 export interface AgentOptions {
@@ -100,9 +102,11 @@ export class Agent {
 
 					const stream = await this.provider.streamText({
 						messages,
-						systemPrompt: this.config.systemPrompt,
+						systemPrompt: buildPromptWithThinking(this.config),
 						abortSignal: combinedSignal,
-						tools: getToolDefinitions(),
+						tools: getToolDefinitions(
+							this.config.enabledTools ?? ["read", "write", "edit", "bash"]
+						),
 					});
 
 					let iterationContent = "";
@@ -239,6 +243,16 @@ export class Agent {
 	getCurrentLeafId(): string | null {
 		return this.session.sessionManager.getLeafId();
 	}
+}
+
+function buildPromptWithThinking(config: AgentConfig): string | undefined {
+	if (!config.systemPrompt) {
+		return undefined;
+	}
+	if (!config.thinking || config.thinking === "off") {
+		return config.systemPrompt;
+	}
+	return `${config.systemPrompt}\n\nThinking level: ${config.thinking}`;
 }
 
 export async function createAgent(
