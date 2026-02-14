@@ -1,12 +1,6 @@
-import type {
-	DirEntry,
-	FileHandle,
-	FileSystem,
-	FilesystemStats,
-	Stats,
-} from "agentfs-sdk";
 import * as nodeFs from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
+import type { DirEntry, FileHandle, FileSystem, FilesystemStats, Stats } from "agentfs-sdk";
 
 const S_IFMT = 0o170000;
 const S_IFREG = 0o100000;
@@ -44,7 +38,7 @@ export class OverlayAgentFS implements FileSystem {
 
 	constructor(
 		private delta: FileSystem,
-		private baseDir: string,
+		private baseDir: string
 	) {}
 
 	getModifiedFiles(): string[] {
@@ -53,10 +47,7 @@ export class OverlayAgentFS implements FileSystem {
 
 	async persistManifest(): Promise<void> {
 		if (this.modifiedFiles.size === 0) return;
-		await this.delta.writeFile(
-			MANIFEST_PATH,
-			JSON.stringify([...this.modifiedFiles]),
-		);
+		await this.delta.writeFile(MANIFEST_PATH, JSON.stringify([...this.modifiedFiles]));
 	}
 
 	static async loadManifest(delta: FileSystem): Promise<string[]> {
@@ -82,11 +73,11 @@ export class OverlayAgentFS implements FileSystem {
 	readFile(path: string, options: { encoding: BufferEncoding }): Promise<string>;
 	readFile(
 		path: string,
-		options?: BufferEncoding | { encoding?: BufferEncoding },
+		options?: BufferEncoding | { encoding?: BufferEncoding }
 	): Promise<Buffer | string>;
 	async readFile(
 		path: string,
-		options?: BufferEncoding | { encoding?: BufferEncoding },
+		options?: BufferEncoding | { encoding?: BufferEncoding }
 	): Promise<Buffer | string> {
 		const p = this.toAbsolute(path);
 		try {
@@ -210,7 +201,7 @@ export class OverlayAgentFS implements FileSystem {
 	async writeFile(
 		path: string,
 		data: string | Buffer,
-		options?: BufferEncoding | { encoding?: BufferEncoding },
+		options?: BufferEncoding | { encoding?: BufferEncoding }
 	): Promise<void> {
 		const p = this.toAbsolute(path);
 		this.modifiedFiles.add(p);

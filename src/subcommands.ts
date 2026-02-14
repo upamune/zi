@@ -1,9 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import * as nodeFs from "node:fs/promises";
-import { createInterface } from "node:readline";
 import { dirname, join } from "node:path";
-import type { CliCommand } from "./cli.js";
+import { createInterface } from "node:readline";
 import { openSessionForApply } from "./agent/session.js";
+import type { CliCommand } from "./cli.js";
 import { getGlobalConfigDir, getProjectConfigPath, loadConfig } from "./config/index.js";
 
 interface PackageEntry {
@@ -191,7 +191,7 @@ async function applySession(sessionId: string, cwd: string, sessionDir?: string)
 export async function runSubcommand(
 	command: CliCommand,
 	cwd: string = process.cwd(),
-	sessionDir?: string,
+	sessionDir?: string
 ): Promise<void> {
 	const scope: "global" | "local" = command.local ? "local" : "global";
 	switch (command.name) {
