@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { modelMessageSchema } from "ai";
 import { SessionManager } from "../src/agent/session-manager.js";
 
 describe("SessionManager", () => {
@@ -122,6 +123,42 @@ describe("SessionManager", () => {
 
 			const context = sm.buildSessionContext();
 			expect(context.model).toEqual({ provider: "openai", modelId: "gpt-4" });
+		});
+
+		test("tool messages are converted to valid model messages", () => {
+			sm.appendMessage({ role: "user", content: "run tool" });
+			sm.appendMessage({
+				role: "assistant",
+				content: "running",
+				toolInvocations: [
+					{
+						toolCallId: "call-1",
+						toolName: "read",
+						args: { path: "/tmp/a.txt" },
+						state: "result",
+						result: { ok: true },
+					},
+				],
+			});
+			sm.appendMessage({
+				role: "tool",
+				content: '{"ok":true}',
+				toolInvocations: [
+					{
+						toolCallId: "call-1",
+						toolName: "read",
+						args: { path: "/tmp/a.txt" },
+						state: "result",
+						result: { ok: true },
+					},
+				],
+			});
+
+			const context = sm.buildSessionContext();
+			expect(context.messages).toHaveLength(3);
+			for (const message of context.messages) {
+				expect(() => modelMessageSchema.parse(message)).not.toThrow();
+			}
 		});
 	});
 

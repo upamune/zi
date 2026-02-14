@@ -22,6 +22,15 @@ function generateId(byId: { has(id: string): boolean }): string {
 	return randomUUID();
 }
 
+function toToolOutput(result: unknown): Record<string, unknown> {
+	try {
+		JSON.stringify(result);
+		return { type: "json", value: result };
+	} catch {
+		return { type: "text", value: String(result) };
+	}
+}
+
 function entryToMessage(entry: MessageEntry): ModelMessage {
 	const content = entry.content;
 
@@ -47,7 +56,7 @@ function entryToMessage(entry: MessageEntry): ModelMessage {
 			type: "tool-result" as const,
 			toolCallId: inv.toolCallId,
 			toolName: inv.toolName,
-			result: inv.result,
+			output: toToolOutput(inv.result),
 		}));
 		return { role: "tool", content: parts } as unknown as ModelMessage;
 	}

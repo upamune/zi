@@ -1,5 +1,4 @@
-import type { ToolCalls } from "agentfs-sdk";
-import type { Bash } from "just-bash";
+import type { Filesystem, ToolCalls } from "agentfs-sdk";
 
 export interface ReadResult {
 	path: string;
@@ -13,33 +12,34 @@ export interface ReadTool {
 	execute(params: { path: string; offset?: number; limit?: number }): Promise<ReadResult>;
 }
 
-export function createReadTool(bash: Bash, tools: ToolCalls): ReadTool {
+export function createReadTool(fs: Filesystem, tools: ToolCalls): ReadTool {
 	return {
 		name: "read",
 		async execute(params: { path: string; offset?: number; limit?: number }): Promise<ReadResult> {
 			const { path, offset, limit } = params;
 			const startedAt = Date.now();
-
-			let command = `cat "${path}"`;
-
-			if (offset !== undefined || limit !== undefined) {
-				const startLine = offset ?? 1;
-				const endLine = limit !== undefined ? startLine + limit - 1 : "$";
-				command = `sed -n '${startLine},${endLine}p' "${path}"`;
-			}
-
-			const result = await bash.exec(command);
-			const completedAt = Date.now();
-
-			if (result.exitCode !== 0) {
-				await tools.record("read", startedAt, completedAt, params, undefined, result.stderr);
-				throw new Error(`Failed to read ${path}: ${result.stderr}`);
+			let content: string;
+			try {
+				const buffer = await fs.readFile(path);
+				content = buffer.toString("utf-8");
+			} catch (error) {
+				const completedAt = Date.now();
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				await tools.record("read", startedAt, completedAt, params, undefined, errorMessage);
+				throw new Error(`Failed to read ${path}: ${errorMessage}`);
 			}
 
 			const readResult: ReadResult = {
 				path,
-				content: result.stdout,
+				content,
 			};
+
+			if (offset !== undefined || limit !== undefined) {
+				const lines = content.split("\n");
+				const startLine = offset ?? 1;
+				const endLine = limit !== undefined ? startLine + limit - 1 : lines.length;
+				readResult.content = lines.slice(startLine - 1, endLine).join("\n");
+			}
 
 			if (offset !== undefined) {
 				readResult.offset = offset;
@@ -48,7 +48,8 @@ export function createReadTool(bash: Bash, tools: ToolCalls): ReadTool {
 				readResult.limit = limit;
 			}
 
-			await tools.record("read", startedAt, completedAt, params, { content: result.stdout });
+			const completedAt = Date.now();
+			await tools.record("read", startedAt, completedAt, params, { content: readResult.content });
 			return readResult;
 		},
 	};

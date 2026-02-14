@@ -34,6 +34,21 @@ export interface ToolCallResult {
 	result: unknown;
 }
 
+function getToolArgs(call: unknown): Record<string, unknown> {
+	if (!call || typeof call !== "object") {
+		return {};
+	}
+
+	const maybeCall = call as { input?: unknown; args?: unknown };
+	if (maybeCall.input && typeof maybeCall.input === "object") {
+		return maybeCall.input as Record<string, unknown>;
+	}
+	if (maybeCall.args && typeof maybeCall.args === "object") {
+		return maybeCall.args as Record<string, unknown>;
+	}
+	return {};
+}
+
 export class Agent {
 	private session: Session;
 	private tools: ToolRegistry;
@@ -127,7 +142,7 @@ export class Agent {
 							throw new Error(`Unknown tool: ${toolName}`);
 						}
 
-						const toolArgs = "input" in call ? (call.input as Record<string, unknown>) : {};
+						const toolArgs = getToolArgs(call);
 						const toolResult = await tool.execute(toolArgs);
 
 						const toolCallId = call.toolCallId ?? `${toolName}-${Date.now()}`;

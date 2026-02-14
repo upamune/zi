@@ -1,5 +1,4 @@
 import type { Filesystem, ToolCalls } from "agentfs-sdk";
-import type { Bash } from "just-bash";
 
 export interface EditResult {
 	path: string;
@@ -18,7 +17,7 @@ export interface EditTool {
 	}): Promise<EditResult>;
 }
 
-export function createEditTool(bash: Bash, fs: Filesystem, tools: ToolCalls): EditTool {
+export function createEditTool(fs: Filesystem, tools: ToolCalls): EditTool {
 	return {
 		name: "edit",
 		async execute(params: {
@@ -30,14 +29,16 @@ export function createEditTool(bash: Bash, fs: Filesystem, tools: ToolCalls): Ed
 			const { path, oldString, newString, replaceAll } = params;
 			const startedAt = Date.now();
 
-			const readResult = await bash.exec(`cat "${path}"`);
-			if (readResult.exitCode !== 0) {
+			let content: string;
+			try {
+				const buffer = await fs.readFile(path);
+				content = buffer.toString("utf-8");
+			} catch (error) {
 				const completedAt = Date.now();
-				await tools.record("edit", startedAt, completedAt, params, undefined, readResult.stderr);
-				throw new Error(`Failed to read ${path}: ${readResult.stderr}`);
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				await tools.record("edit", startedAt, completedAt, params, undefined, errorMessage);
+				throw new Error(`Failed to read ${path}: ${errorMessage}`);
 			}
-
-			const content = readResult.stdout;
 			const occurrences = (content.match(new RegExp(escapeRegex(oldString), "g")) || []).length;
 
 			if (occurrences === 0) {
