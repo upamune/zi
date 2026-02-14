@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import type { Filesystem, ToolCalls } from "agentfs-sdk";
+import type { FileSystem, ToolCalls } from "agentfs-sdk";
 import { createEditTool } from "../src/tools/edit.js";
 
 describe("EditTool", () => {
-	let mockFs: Filesystem;
+	let mockFs: FileSystem;
 	let mockTools: ToolCalls;
 	let recordMock: ReturnType<typeof mock>;
 	let writeFileMock: ReturnType<typeof mock>;
@@ -16,7 +16,7 @@ describe("EditTool", () => {
 		mockFs = {
 			readFile: readFileMock,
 			writeFile: writeFileMock,
-		} as unknown as Filesystem;
+		} as unknown as FileSystem;
 		mockTools = {
 			record: recordMock,
 			start: mock(async () => 1),
@@ -31,7 +31,7 @@ describe("EditTool", () => {
 
 	test("should replace single occurrence", async () => {
 		readFileMock = mock(async () => Buffer.from("Hello, World!", "utf-8"));
-		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
+		mockFs.readFile = readFileMock as unknown as FileSystem["readFile"];
 
 		const tool = createEditTool(mockFs, mockTools);
 		const result = await tool.execute({
@@ -46,7 +46,7 @@ describe("EditTool", () => {
 
 	test("should throw when text not found", async () => {
 		readFileMock = mock(async () => Buffer.from("Hello, World!", "utf-8"));
-		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
+		mockFs.readFile = readFileMock as unknown as FileSystem["readFile"];
 
 		const tool = createEditTool(mockFs, mockTools);
 
@@ -61,7 +61,7 @@ describe("EditTool", () => {
 
 	test("should throw when multiple occurrences without replaceAll", async () => {
 		readFileMock = mock(async () => Buffer.from("foo bar foo", "utf-8"));
-		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
+		mockFs.readFile = readFileMock as unknown as FileSystem["readFile"];
 
 		const tool = createEditTool(mockFs, mockTools);
 
@@ -76,7 +76,7 @@ describe("EditTool", () => {
 
 	test("should replace all occurrences with replaceAll", async () => {
 		readFileMock = mock(async () => Buffer.from("foo bar foo", "utf-8"));
-		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
+		mockFs.readFile = readFileMock as unknown as FileSystem["readFile"];
 
 		const tool = createEditTool(mockFs, mockTools);
 		const result = await tool.execute({
@@ -94,7 +94,7 @@ describe("EditTool", () => {
 		readFileMock = mock(async () => {
 			throw new Error("Permission denied");
 		});
-		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
+		mockFs.readFile = readFileMock as unknown as FileSystem["readFile"];
 
 		const tool = createEditTool(mockFs, mockTools);
 

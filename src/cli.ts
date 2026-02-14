@@ -2,7 +2,7 @@ import { parseArgs } from "node:util";
 import { NAME, VERSION } from "./config/index.js";
 
 export interface CliCommand {
-	name: "install" | "remove" | "update" | "list" | "config";
+	name: "install" | "remove" | "update" | "list" | "config" | "apply";
 	source: string | null;
 	local: boolean;
 }
@@ -149,11 +149,11 @@ export function parseCliArgs(args: string[] = process.argv.slice(2)): CliArgs {
 
 function parseCommand(positionals: string[], local: boolean): CliCommand | null {
 	const name = positionals[0];
-	if (!name || !["install", "remove", "update", "list", "config"].includes(name)) {
+	if (!name || !["install", "remove", "update", "list", "config", "apply"].includes(name)) {
 		return null;
 	}
 	const source = positionals[1] ?? null;
-	if ((name === "install" || name === "remove") && !source) {
+	if ((name === "install" || name === "remove" || name === "apply") && !source) {
 		throw new Error(`${name} requires <source>`);
 	}
 	return {
@@ -176,6 +176,7 @@ COMMANDS:
   update [source]
   list
   config
+  apply <session-id>            Apply file changes from a session to disk
 
 OPTIONS:
   -c, --continue      Continue from last session

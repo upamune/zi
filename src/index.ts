@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Bash } from "just-bash";
+import { Bash, OverlayFs } from "just-bash";
 import { Agent } from "./agent/index.js";
 import { createProvider, getModelsByProvider, type ProviderName } from "./agent/provider.js";
 import { createSession, listSessions, loadSession, sessionExists } from "./agent/session.js";
@@ -34,7 +34,7 @@ async function main(): Promise<void> {
 
 	if (args.command) {
 		try {
-			await runSubcommand(args.command);
+			await runSubcommand(args.command, process.cwd(), args.sessionDir ?? undefined);
 			process.exit(0);
 		} catch (error) {
 			console.error("Error:", error instanceof Error ? error.message : String(error));
@@ -126,7 +126,9 @@ async function main(): Promise<void> {
 			? await loadSession(sessionId, baseDir)
 			: await createSession(sessionId, baseDir);
 
-	const bash = new Bash();
+	const cwd = baseDir ?? process.cwd();
+	const bashFs = new OverlayFs({ root: cwd, mountPoint: cwd });
+	const bash = new Bash({ fs: bashFs, cwd });
 	const tools = createToolRegistry(bash, session.fs, session.tools, selectedTools.enabledTools);
 	const provider = createProvider(config);
 
@@ -217,8 +219,22 @@ async function main(): Promise<void> {
 
 	const handleShutdown = () => {
 		tui.stop();
-		session.close().catch(() => {});
-		process.exit(0);
+		(async () => {
+			const modifiedFiles = session.getModifiedFiles();
+			if (modifiedFiles.length > 0) {
+				await session.persistManifest().catch(() => {});
+				const cwdPrefix = `${cwd}/`;
+				console.log("\n━━━ Session ended ━━━");
+				console.log(`📝 ${modifiedFiles.length} file(s) modified:\n`);
+				for (const f of modifiedFiles) {
+					const display = f.startsWith(cwdPrefix) ? f.slice(cwdPrefix.length) : f;
+					console.log(`  M ${display}`);
+				}
+				console.log(`\nTo review and apply:\n  zi apply ${sessionId}`);
+			}
+			await session.close().catch(() => {});
+			process.exit(0);
+		})();
 	};
 
 	tui.onExit = handleShutdown;

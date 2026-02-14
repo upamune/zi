@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import type { Filesystem, ToolCalls } from "agentfs-sdk";
+import type { FileSystem, ToolCalls } from "agentfs-sdk";
 import { createReadTool } from "../src/tools/read.js";
 
 describe("ReadTool", () => {
-	let mockFs: Filesystem;
+	let mockFs: FileSystem;
 	let mockTools: ToolCalls;
 	let recordMock: ReturnType<typeof mock>;
 	let readFileMock: ReturnType<typeof mock>;
@@ -13,7 +13,7 @@ describe("ReadTool", () => {
 		readFileMock = mock(async () => Buffer.from(""));
 		mockFs = {
 			readFile: readFileMock,
-		} as unknown as Filesystem;
+		} as unknown as FileSystem;
 		mockTools = {
 			record: recordMock,
 			start: mock(async () => 1),
@@ -29,7 +29,7 @@ describe("ReadTool", () => {
 	test("should read file content", async () => {
 		const fileContent = "Hello, World!";
 		readFileMock = mock(async () => Buffer.from(fileContent, "utf-8"));
-		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
+		mockFs.readFile = readFileMock as unknown as FileSystem["readFile"];
 
 		const tool = createReadTool(mockFs, mockTools);
 		const result = await tool.execute({ path: "/test.txt" });
@@ -42,7 +42,7 @@ describe("ReadTool", () => {
 		readFileMock = mock(async () => {
 			throw new Error("File not found");
 		});
-		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
+		mockFs.readFile = readFileMock as unknown as FileSystem["readFile"];
 
 		const tool = createReadTool(mockFs, mockTools);
 
@@ -53,7 +53,7 @@ describe("ReadTool", () => {
 
 	test("should apply offset/limit", async () => {
 		readFileMock = mock(async () => Buffer.from("line1\nline2\nline3", "utf-8"));
-		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
+		mockFs.readFile = readFileMock as unknown as FileSystem["readFile"];
 
 		const tool = createReadTool(mockFs, mockTools);
 		const result = await tool.execute({ path: "/test.txt", offset: 2, limit: 1 });
@@ -62,7 +62,7 @@ describe("ReadTool", () => {
 
 	test("should record tool call", async () => {
 		readFileMock = mock(async () => Buffer.from("content", "utf-8"));
-		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
+		mockFs.readFile = readFileMock as unknown as FileSystem["readFile"];
 
 		const tool = createReadTool(mockFs, mockTools);
 		await tool.execute({ path: "/test.txt" });

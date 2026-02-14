@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import type { Filesystem, ToolCalls } from "agentfs-sdk";
+import type { FileSystem, ToolCalls } from "agentfs-sdk";
 import { createWriteTool } from "../src/tools/write.js";
 
 describe("WriteTool", () => {
-	let mockFs: Filesystem;
+	let mockFs: FileSystem;
 	let mockTools: ToolCalls;
 	let recordMock: ReturnType<typeof mock>;
 	let writeFileMock: ReturnType<typeof mock>;
@@ -13,7 +13,7 @@ describe("WriteTool", () => {
 		writeFileMock = mock(async () => {});
 		mockFs = {
 			writeFile: writeFileMock,
-		} as unknown as Filesystem;
+		} as unknown as FileSystem;
 		mockTools = {
 			record: recordMock,
 			start: mock(async () => 1),
@@ -41,7 +41,7 @@ describe("WriteTool", () => {
 		});
 		mockFs = {
 			writeFile: writeFileMock,
-		} as unknown as Filesystem;
+		} as unknown as FileSystem;
 
 		const tool = createWriteTool(mockFs, mockTools);
 

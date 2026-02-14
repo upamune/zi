@@ -1,5 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import * as nodeFs from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { createInterface } from "node:readline";
+import { openSessionForApply } from "./agent/session.js";
 import type { CliCommand } from "./cli.js";
 import { getGlobalConfigDir, getProjectConfigPath, loadConfig } from "./config/index.js";
 
@@ -124,9 +127,71 @@ export async function printConfig(cwd: string): Promise<void> {
 	console.log(`project: ${getProjectConfigPath(cwd)}`);
 }
 
+function toRelativePath(filePath: string, cwdPath: string): string {
+	const prefix = cwdPath.endsWith("/") ? cwdPath : `${cwdPath}/`;
+	if (filePath.startsWith(prefix)) {
+		return filePath.slice(prefix.length);
+	}
+	return filePath;
+}
+
+async function confirm(message: string): Promise<boolean> {
+	const rl = createInterface({ input: process.stdin, output: process.stdout });
+	return new Promise((resolve) => {
+		rl.question(`${message} [Y/n] `, (answer) => {
+			rl.close();
+			resolve(answer.trim().toLowerCase() !== "n");
+		});
+	});
+}
+
+async function applySession(sessionId: string, cwd: string, sessionDir?: string): Promise<void> {
+	const baseDir = sessionDir ?? cwd;
+	const session = await openSessionForApply(sessionId, baseDir);
+
+	try {
+		if (session.modifiedFiles.length === 0) {
+			console.log("No changes to apply.");
+			return;
+		}
+
+		console.log(`\nApplying session ${sessionId}...\n`);
+
+		for (const filePath of session.modifiedFiles) {
+			const display = toRelativePath(filePath, baseDir);
+			const isNew = !existsSync(filePath);
+			const deltaContent = await session.deltaFs.readFile(filePath);
+			const status = isNew ? "A" : "M";
+			console.log(`  ${status} ${display} (${deltaContent.length} bytes)`);
+		}
+
+		console.log("");
+		const ok = await confirm("Apply these changes?");
+
+		if (!ok) {
+			console.log("Cancelled.");
+			return;
+		}
+
+		for (const filePath of session.modifiedFiles) {
+			const deltaContent = await session.deltaFs.readFile(filePath);
+			const dir = dirname(filePath);
+			if (!existsSync(dir)) {
+				await nodeFs.mkdir(dir, { recursive: true });
+			}
+			await nodeFs.writeFile(filePath, deltaContent);
+		}
+
+		console.log(`\n✓ Applied ${session.modifiedFiles.length} file(s)`);
+	} finally {
+		await session.close();
+	}
+}
+
 export async function runSubcommand(
 	command: CliCommand,
-	cwd: string = process.cwd()
+	cwd: string = process.cwd(),
+	sessionDir?: string
 ): Promise<void> {
 	const scope: "global" | "local" = command.local ? "local" : "global";
 	switch (command.name) {
@@ -156,6 +221,9 @@ export async function runSubcommand(
 		}
 		case "config":
 			await printConfig(cwd);
+			return;
+		case "apply":
+			await applySession(command.source as string, cwd, sessionDir);
 			return;
 	}
 }

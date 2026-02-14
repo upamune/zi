@@ -417,6 +417,7 @@ COMMANDS:
   update [source]
   list
   config
+  apply <session-id>            Apply file changes from a session to disk
 
 OPTIONS:
   -c, --continue      Continue from last session
