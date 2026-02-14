@@ -4,12 +4,12 @@
 	"description": "A minimal, fully-trackable coding agent",
 	"type": "module",
 	"bin": {
-		"zi": "./src/cli.ts"
+		"zi": "./src/index.ts"
 	},
 	"main": "./src/index.ts",
 	"scripts": {
-		"dev": "bun run src/cli.ts",
-		"build": "bun build ./src/cli.ts --outdir ./dist --target bun",
+		"dev": "bun run src/index.ts",
+		"build": "bun build ./src/index.ts --outdir ./dist --target bun",
 		"test": "bun test ./test/",
 		"typecheck": "tsc --noEmit",
 		"lint": "biome check .",

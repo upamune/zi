@@ -127,6 +127,7 @@ async function main(): Promise<void> {
 		process.exit(0);
 	};
 
+	tui.onExit = handleShutdown;
 	process.on("SIGINT", handleShutdown);
 	process.on("SIGTERM", handleShutdown);
 
