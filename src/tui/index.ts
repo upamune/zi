@@ -126,6 +126,7 @@ export class ZiTui {
 	private statusBar: StatusBar;
 	private container: Container;
 	private agent: Agent;
+	onExit?: () => void;
 
 	constructor(agent: Agent, options: TuiOptions) {
 		this.agent = agent;
@@ -150,6 +151,14 @@ export class ZiTui {
 		this.editor.onSubmit = async (text: string) => {
 			await this.handleSubmit(text);
 		};
+
+		this.tui.addInputListener((data: string) => {
+			if (data === "\x04" && this.editor.getText().trim() === "") {
+				this.onExit?.();
+				return { consume: true };
+			}
+			return undefined;
+		});
 	}
 
 	private async handleSubmit(text: string): Promise<void> {
