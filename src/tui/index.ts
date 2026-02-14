@@ -68,7 +68,7 @@ class Header implements Component {
 
 		const content = `${sessionPart} │ ${modelPart}`;
 
-		const line = content.length > width ? content.slice(0, width - 3) + "..." : content;
+		const line = content.length > width ? `${content.slice(0, width - 3)}...` : content;
 		return [`\x1b[1;36m${line}\x1b[0m`];
 	}
 }

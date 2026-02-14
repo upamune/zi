@@ -28,17 +28,20 @@ bun run check        # Format + typecheck (pre-commit hook)
 - **Quotes**: Double quotes for strings
 - **Semicolons**: Always
 - **Trailing commas**: ES5 style
+- **No comments** unless explicitly requested
 
 ### Imports
 
 ```typescript
-// External imports first (alphabetically)
-import { chalk } from "chalk";
+// External imports first (alphabetically by package name)
+import { type ModelMessage, streamText } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
 import { AgentFS } from "agentfs-sdk";
 import { Bash } from "just-bash";
 
 // Internal imports second (use @/ alias)
-import { Config } from "@/config/index.js";
+import { Config, loadConfig } from "@/config/index.js";
 import { Session } from "@/agent/session.js";
 ```
 
@@ -48,12 +51,16 @@ import { Session } from "@/agent/session.js";
 - Prefer interfaces over types for object shapes
 - Use `type` for unions, intersections, and utility types
 - Always define return types for public functions
+- Use `type` keyword when importing types: `import type { ... }`
 
 ```typescript
 // Good
 interface Session {
-  id: string;
-  fs: AgentFS;
+	id: string;
+	fs: Filesystem;
+	kv: KvStore;
+	tools: ToolCalls;
+	close(): Promise<void>;
 }
 
 type ProviderName = "anthropic" | "openai" | "kimi";
@@ -67,21 +74,23 @@ export function createSession(id: string): Promise<Session>
 - **Files**: lowercase with hyphens (`tool-registry.ts`)
 - **Interfaces**: PascalCase (`Session`, `LLMProvider`)
 - **Functions**: camelCase (`createSession`, `executeTool`)
-- **Constants**: SCREAMING_SNAKE_CASE (`DEFAULT_CONFIG`)
+- **Factory functions**: `create` prefix (`createToolRegistry`)
+- **Constants**: SCREAMING_SNAKE_CASE (`DEFAULT_CONFIG`, `KIMI_BASE_URL`)
 - **Private members**: underscore prefix (`_internal`)
 
 ### Error Handling
 
 ```typescript
-// Throw descriptive errors
-throw new Error(`Text not found in ${path}`);
+// Throw descriptive errors with context
+throw new Error(`Failed to read ${path}: ${result.stderr}`);
 
 // Catch and log to AgentFS for auditability
 try {
-  await tool.execute(params);
+	await tool.execute(params);
 } catch (error) {
-  await session.tools.record(tool.name, params, { error: error.message });
-  return { error: error.message };
+	const errorMessage = error instanceof Error ? error.message : String(error);
+	await tools.record("tool", startedAt, completedAt, params, undefined, errorMessage);
+	throw new Error(`Tool execution failed: ${errorMessage}`);
 }
 ```
 
@@ -89,22 +98,29 @@ try {
 
 ```
 src/
-├── index.ts           # Entry point
+├── index.ts           # Entry point (main())
 ├── cli.ts             # CLI argument parsing
 ├── agent/
-│   ├── index.ts       # Agent core
-│   ├── session.ts     # Session management
-│   └── provider.ts    # LLM provider abstraction
+│   ├── index.ts       # Agent class (prompt, getMessages, clearMessages)
+│   ├── session.ts     # Session management (createSession, loadSession)
+│   └── provider.ts    # LLM provider abstraction (createProvider)
 ├── tools/
-│   ├── index.ts       # Tool registry
+│   ├── index.ts       # Tool registry (createToolRegistry)
 │   ├── read.ts        # Read tool (via Just Bash)
 │   ├── write.ts       # Write tool (via AgentFS)
-│   ├── edit.ts        # Edit tool (read → TS replace → write)
+│   ├── edit.ts        # Edit tool (read → replace → write)
 │   └── bash.ts        # Bash tool (via Just Bash)
 ├── tui/
 │   └── index.ts       # Terminal UI (pi-tui)
 └── config/
-    └── index.ts       # Configuration management
+    └── index.ts       # Configuration (loadConfig, saveConfig)
+
+test/
+├── read.test.ts       # Read tool tests
+├── write.test.ts      # Write tool tests
+├── edit.test.ts       # Edit tool tests
+├── bash.test.ts       # Bash tool tests
+└── ...                # More test files
 ```
 
 ## Key Architecture Points
@@ -119,23 +135,82 @@ src/
 
 ## Testing
 
-- Use Bun's built-in test runner
-- Place tests in `test/` directory or alongside source files as `.test.ts`
-- Use descriptive test names
+### Test Structure
 
 ```typescript
-import { test, expect } from "bun:test";
+import { describe, expect, test, beforeEach, mock } from "bun:test";
 
-test("edit tool throws on non-unique text", async () => {
-  const result = edit(path, "common", "new");
-  expect(result).rejects.toThrow("Found 2 occurrences");
+describe("ToolName", () => {
+	let mockDependency: Dependency;
+	let recordMock: ReturnType<typeof mock>;
+
+	beforeEach(() => {
+		recordMock = mock(async () => 1);
+		mockDependency = {
+			method: recordMock,
+		} as unknown as Dependency;
+	});
+
+	test("should do something", async () => {
+		const tool = createTool(mockDependency);
+		const result = await tool.execute({ param: "value" });
+		expect(result).toBe("expected");
+	});
+
+	test("should throw on error", async () => {
+		mockDependency.method = mock(async () => { throw new Error("fail"); });
+		const tool = createTool(mockDependency);
+		expect(tool.execute({})).rejects.toThrow("fail");
+	});
 });
 ```
 
-## Git Hooks
+### Mock Patterns
 
-Pre-commit runs `bun run check` (format + typecheck).
-Pre-push runs `bun run test`.
+```typescript
+// Mock Bash with BashExecResult
+mockBash = {
+	exec: mock(async (): Promise<BashExecResult> => ({
+		stdout: "output",
+		stderr: "",
+		exitCode: 0,
+		env: {},
+	})),
+} as unknown as Bash;
+
+// Mock Filesystem
+mockFs = {
+	writeFile: mock(async () => {}),
+	readFile: mock(async () => Buffer.from("content")),
+} as unknown as Filesystem;
+
+// Mock ToolCalls
+mockTools = {
+	record: mock(async () => 1),
+	start: mock(async () => 1),
+	success: mock(async () => {}),
+	error: mock(async () => {}),
+} as unknown as ToolCalls;
+```
+
+### Test Naming
+
+- Use descriptive test names: `"should replace single occurrence"`
+- Group related tests with `describe()`: `describe("parseArgs", () => ...)`
+- Test both success and error cases
+
+## Dependencies
+
+### Core Dependencies
+- `ai` / `@ai-sdk/anthropic` / `@ai-sdk/openai` - Vercel AI SDK for LLM
+- `agentfs-sdk` - SQLite-backed file system with auditability
+- `just-bash` - Sandboxed bash shell
+- `@mariozechner/pi-tui` - Terminal UI components
+
+### Development Dependencies
+- `@biomejs/biome` - Linting and formatting
+- `typescript` - Type checking
+- `bun` - Runtime and test runner
 
 ## Environment Variables
 
@@ -144,13 +219,14 @@ Pre-push runs `bun run test`.
 - `OPENAI_API_KEY`: OpenAI API key
 - `KIMI_API_KEY`: Kimi API key
 
----
+## Git Hooks
+
+Pre-commit runs `bun run check` (format + typecheck).
+Pre-push runs `bun run test`.
 
 ## Task Tracking (Beads)
 
-This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
-
-### Quick Reference
+This project uses **bd** (beads) for issue tracking.
 
 ```bash
 bd ready              # Find available work
@@ -158,30 +234,25 @@ bd show <id>          # View issue details
 bd update <id> --status in_progress  # Claim work
 bd close <id>         # Complete work
 bd sync               # Sync with git
+bd add "Title" --priority P0 --description "Details"
 ```
 
 ### Landing the Plane (Session Completion)
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
+**When ending a work session**, you MUST complete ALL steps below:
 
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
+2. **Run quality gates** - `bun run check` and `bun run test`
+3. **Update issue status** - Close finished work with `bd close`
+4. **PUSH TO REMOTE**:
    ```bash
    git pull --rebase
    bd sync
    git push
    git status  # MUST show "up to date with origin"
    ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
