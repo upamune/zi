@@ -30,7 +30,13 @@
 		"@types/bun": "latest",
 		"typescript": "^5.9.0"
 	},
-	"keywords": ["ai", "agent", "coding", "llm", "cli"],
+	"keywords": [
+		"ai",
+		"agent",
+		"coding",
+		"llm",
+		"cli"
+	],
 	"author": "",
 	"license": "MIT"
 }
