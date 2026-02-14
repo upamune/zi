@@ -40,9 +40,9 @@ class ToolRegistryImpl implements ToolRegistry {
 export function createToolRegistry(bash: Bash, fs: Filesystem, tools: ToolCalls): ToolRegistry {
 	const registry = new ToolRegistryImpl();
 
-	registry.register(createReadTool(bash, tools) as BaseTool);
+	registry.register(createReadTool(fs, tools) as BaseTool);
 	registry.register(createWriteTool(fs, tools) as BaseTool);
-	registry.register(createEditTool(bash, fs, tools) as BaseTool);
+	registry.register(createEditTool(fs, tools) as BaseTool);
 	registry.register(createBashTool(bash, tools) as BaseTool);
 
 	return registry;

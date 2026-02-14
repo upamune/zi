@@ -1,19 +1,20 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Filesystem, ToolCalls } from "agentfs-sdk";
-import type { Bash, BashExecResult } from "just-bash";
 import { createEditTool } from "../src/tools/edit.js";
 
 describe("EditTool", () => {
-	let mockBash: Bash;
 	let mockFs: Filesystem;
 	let mockTools: ToolCalls;
 	let recordMock: ReturnType<typeof mock>;
 	let writeFileMock: ReturnType<typeof mock>;
+	let readFileMock: ReturnType<typeof mock>;
 
 	beforeEach(() => {
 		recordMock = mock(async () => 1);
 		writeFileMock = mock(async () => {});
+		readFileMock = mock(async () => Buffer.from("", "utf-8"));
 		mockFs = {
+			readFile: readFileMock,
 			writeFile: writeFileMock,
 		} as unknown as Filesystem;
 		mockTools = {
@@ -29,18 +30,10 @@ describe("EditTool", () => {
 	});
 
 	test("should replace single occurrence", async () => {
-		mockBash = {
-			exec: mock(
-				async (): Promise<BashExecResult> => ({
-					stdout: "Hello, World!",
-					stderr: "",
-					exitCode: 0,
-					env: {},
-				})
-			),
-		} as unknown as Bash;
+		readFileMock = mock(async () => Buffer.from("Hello, World!", "utf-8"));
+		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
 
-		const tool = createEditTool(mockBash, mockFs, mockTools);
+		const tool = createEditTool(mockFs, mockTools);
 		const result = await tool.execute({
 			path: "/test.txt",
 			oldString: "World",
@@ -52,18 +45,10 @@ describe("EditTool", () => {
 	});
 
 	test("should throw when text not found", async () => {
-		mockBash = {
-			exec: mock(
-				async (): Promise<BashExecResult> => ({
-					stdout: "Hello, World!",
-					stderr: "",
-					exitCode: 0,
-					env: {},
-				})
-			),
-		} as unknown as Bash;
+		readFileMock = mock(async () => Buffer.from("Hello, World!", "utf-8"));
+		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
 
-		const tool = createEditTool(mockBash, mockFs, mockTools);
+		const tool = createEditTool(mockFs, mockTools);
 
 		expect(
 			tool.execute({
@@ -75,18 +60,10 @@ describe("EditTool", () => {
 	});
 
 	test("should throw when multiple occurrences without replaceAll", async () => {
-		mockBash = {
-			exec: mock(
-				async (): Promise<BashExecResult> => ({
-					stdout: "foo bar foo",
-					stderr: "",
-					exitCode: 0,
-					env: {},
-				})
-			),
-		} as unknown as Bash;
+		readFileMock = mock(async () => Buffer.from("foo bar foo", "utf-8"));
+		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
 
-		const tool = createEditTool(mockBash, mockFs, mockTools);
+		const tool = createEditTool(mockFs, mockTools);
 
 		expect(
 			tool.execute({
@@ -98,18 +75,10 @@ describe("EditTool", () => {
 	});
 
 	test("should replace all occurrences with replaceAll", async () => {
-		mockBash = {
-			exec: mock(
-				async (): Promise<BashExecResult> => ({
-					stdout: "foo bar foo",
-					stderr: "",
-					exitCode: 0,
-					env: {},
-				})
-			),
-		} as unknown as Bash;
+		readFileMock = mock(async () => Buffer.from("foo bar foo", "utf-8"));
+		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
 
-		const tool = createEditTool(mockBash, mockFs, mockTools);
+		const tool = createEditTool(mockFs, mockTools);
 		const result = await tool.execute({
 			path: "/test.txt",
 			oldString: "foo",
@@ -122,18 +91,12 @@ describe("EditTool", () => {
 	});
 
 	test("should throw on read failure", async () => {
-		mockBash = {
-			exec: mock(
-				async (): Promise<BashExecResult> => ({
-					stdout: "",
-					stderr: "Permission denied",
-					exitCode: 1,
-					env: {},
-				})
-			),
-		} as unknown as Bash;
+		readFileMock = mock(async () => {
+			throw new Error("Permission denied");
+		});
+		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
 
-		const tool = createEditTool(mockBash, mockFs, mockTools);
+		const tool = createEditTool(mockFs, mockTools);
 
 		expect(
 			tool.execute({

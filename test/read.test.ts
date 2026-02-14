@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import type { ToolCalls } from "agentfs-sdk";
-import type { Bash, BashExecResult } from "just-bash";
+import type { Filesystem, ToolCalls } from "agentfs-sdk";
 import { createReadTool } from "../src/tools/read.js";
 
 describe("ReadTool", () => {
-	let mockBash: Bash;
+	let mockFs: Filesystem;
 	let mockTools: ToolCalls;
 	let recordMock: ReturnType<typeof mock>;
+	let readFileMock: ReturnType<typeof mock>;
 
 	beforeEach(() => {
 		recordMock = mock(async () => 1);
+		readFileMock = mock(async () => Buffer.from(""));
+		mockFs = {
+			readFile: readFileMock,
+		} as unknown as Filesystem;
 		mockTools = {
 			record: recordMock,
 			start: mock(async () => 1),
@@ -24,18 +28,10 @@ describe("ReadTool", () => {
 
 	test("should read file content", async () => {
 		const fileContent = "Hello, World!";
-		mockBash = {
-			exec: mock(
-				async (): Promise<BashExecResult> => ({
-					stdout: fileContent,
-					stderr: "",
-					exitCode: 0,
-					env: {},
-				})
-			),
-		} as unknown as Bash;
+		readFileMock = mock(async () => Buffer.from(fileContent, "utf-8"));
+		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
 
-		const tool = createReadTool(mockBash, mockTools);
+		const tool = createReadTool(mockFs, mockTools);
 		const result = await tool.execute({ path: "/test.txt" });
 
 		expect(result.content).toBe(fileContent);
@@ -43,58 +39,32 @@ describe("ReadTool", () => {
 	});
 
 	test("should throw on read failure", async () => {
-		mockBash = {
-			exec: mock(
-				async (): Promise<BashExecResult> => ({
-					stdout: "",
-					stderr: "File not found",
-					exitCode: 1,
-					env: {},
-				})
-			),
-		} as unknown as Bash;
+		readFileMock = mock(async () => {
+			throw new Error("File not found");
+		});
+		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
 
-		const tool = createReadTool(mockBash, mockTools);
+		const tool = createReadTool(mockFs, mockTools);
 
 		expect(tool.execute({ path: "/nonexistent.txt" })).rejects.toThrow(
 			"Failed to read /nonexistent.txt"
 		);
 	});
 
-	test("should use sed for offset/limit", async () => {
-		const fileContent = "line1\nline2\nline3";
-		let capturedCommand = "";
-		mockBash = {
-			exec: mock(async (cmd: string): Promise<BashExecResult> => {
-				capturedCommand = cmd;
-				return {
-					stdout: fileContent,
-					stderr: "",
-					exitCode: 0,
-					env: {},
-				};
-			}),
-		} as unknown as Bash;
+	test("should apply offset/limit", async () => {
+		readFileMock = mock(async () => Buffer.from("line1\nline2\nline3", "utf-8"));
+		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
 
-		const tool = createReadTool(mockBash, mockTools);
-		await tool.execute({ path: "/test.txt", offset: 2, limit: 1 });
-
-		expect(capturedCommand).toContain("sed -n '2,2p'");
+		const tool = createReadTool(mockFs, mockTools);
+		const result = await tool.execute({ path: "/test.txt", offset: 2, limit: 1 });
+		expect(result.content).toBe("line2");
 	});
 
 	test("should record tool call", async () => {
-		mockBash = {
-			exec: mock(
-				async (): Promise<BashExecResult> => ({
-					stdout: "content",
-					stderr: "",
-					exitCode: 0,
-					env: {},
-				})
-			),
-		} as unknown as Bash;
+		readFileMock = mock(async () => Buffer.from("content", "utf-8"));
+		mockFs.readFile = readFileMock as unknown as Filesystem["readFile"];
 
-		const tool = createReadTool(mockBash, mockTools);
+		const tool = createReadTool(mockFs, mockTools);
 		await tool.execute({ path: "/test.txt" });
 
 		expect(recordMock).toHaveBeenCalled();
