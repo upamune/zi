@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "39c9e3646715",
+  "session_id": "b80ab639-3af2-4e9f-a0de-b52f18e0edd2",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-14T16:29:58.15054Z",
+  "branch": "feat/overlay-fs-cow",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "docs/overlay-fs.md",
+    "src/agent/session.ts",
+    "src/cli.ts",
+    "src/fs/overlay-agentfs.ts",
+    "src/index.ts",
+    "src/subcommands.ts",
+    "src/tools/edit.ts",
+    "src/tools/index.ts",
+    "src/tools/read.ts",
+    "src/tools/write.ts",
+    "test/cli.test.ts",
+    "test/edit.test.ts",
+    "test/overlay-agentfs.test.ts",
+    "test/read.test.ts",
+    "test/write.test.ts"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 69,
+    "cache_creation_tokens": 468048,
+    "cache_read_tokens": 6339092,
+    "output_tokens": 5447,
+    "api_call_count": 57
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-14T16:29:57.814673Z",
+    "agent_lines": 899,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 899,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-masato-yamamoto-ghq-github-com-upamune-zi/b80ab639-3af2-4e9f-a0de-b52f18e0edd2.jsonl"
+}

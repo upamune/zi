@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "4e0984a650d5",
+  "session_id": "feef78be-d531-4969-95d9-8daa2d63e7d6",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-14T17:40:27.530275Z",
+  "branch": "fix/api-key-error-handling",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/agent/index.ts",
+    "src/agent/provider.ts",
+    "src/cli-runtime.ts",
+    "src/index.ts",
+    "test/agent.test.ts",
+    "test/cli-runtime.test.ts"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 75126,
+    "cache_read_tokens": 1786775,
+    "output_tokens": 2815,
+    "api_call_count": 30
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-14T17:40:27.363607Z",
+    "agent_lines": 129,
+    "human_added": 0,
+    "human_modified": 3,
+    "human_removed": 6,
+    "total_committed": 132,
+    "agent_percentage": 97.72727272727273
+  },
+  "transcript_path": ".claude/projects/-Users-masato-yamamoto-ghq-github-com-upamune-zi/feef78be-d531-4969-95d9-8daa2d63e7d6.jsonl"
+}

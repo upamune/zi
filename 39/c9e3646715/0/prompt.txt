@@ -1,0 +1,302 @@
+Implement the following plan:
+
+# zi: AgentFS CoW オーバーレイでリアルファイルシステムにアクセス可能にする
+
+## Context
+
+`zi` はコーディングエージェント CLI だが、現在エージェントがリアルファイルシステムを一切見えない。
+
+**根本原因:**
+- `just-bash` がデフォルトの `InMemoryFs`（空）で起動 → `ls` が空
+- `read/write/edit` ツールが AgentFS の SQLite FS を使用 → DB が空なのでファイルが読めない
+
+**意図する結果:**
+AgentFS の CoW (Copy-on-Write) オーバーレイモデルを実装する：
+```
+┌────────────────────────────────────┐
+│  Merged View (エージェントが見る)    │
+├────────────────────────────────────┤
+│  Delta Layer (AgentFS SQLite DB)   │  ← 書き込みはここ
+├────────────────────────────────────┤
+│  Base Layer (実ディレクトリ cwd)     │  ← 読み取り専用フォールバック
+└────────────────────────────────────┘
+```
+- 読み取り: Delta を先に確認、なければ Base（実FS）にフォールバック
+- 書き込み: Delta（AgentFS SQLite）のみに書く
+- 削除: Delta に whiteout マーカー（将来対応）
+- すべてのツール（read/write/edit/bash）が統一的にこのオーバーレイを使用
+
+## 方針: OverlayAgentFS を自前実装
+
+agentfs-sdk の現バージョンには OverlayFS/HostFS 実装が含まれていないため、
+`FileSystem`（agentfs-sdk）インターフェースを実装するオーバーレイクラスを作成する。
+
+```
+OverlayAgentFS implements FileSystem
+├── delta: AgentFS.fs (SQLite)  ← session.fs をそのまま使用
+└── baseDir: string (cwd)       ← node:fs/promises で読む
+```
+
+## 変更ファイルと手順
+
+### Step 1: OverlayAgentFS の実装
+
+**新規ファイル:** `src/fs/overlay-agentfs.ts`
+
+agentfs-sdk の `FileSystem` インターフェースを実装するクラス。
+Delta（AgentFS SQLite）+ Base（`node:fs/promises`）の2層構成。
+
+```typescript
+import type { FileSystem, Stats, DirEntry, FilesystemStats, FileHandle } from "agentfs-sdk";
+// ↑ node_modules/agentfs-sdk/dist/filesystem/interface.d.ts からの型
+import * as nodeFs from "node:fs/promises";
+import { join, resolve, relative, isAbsolute } from "node:path";
+
+export class OverlayAgentFS implements FileSystem {
+  constructor(
+    private delta: FileSystem,   // AgentFS SQLite FS
+    private baseDir: string,     // 実ディレクトリのパス
+  ) {}
+
+  // パスを正規化: 絶対パスなら baseDir からの相対に、相対パスはそのまま
+  // Delta 内では "/" から始まるパスで管理
+  private normalizePath(path: string): string { ... }
+
+  // Base レイヤーのリアルパスに変換
+  private toBasePath(normalizedPath: string): string {
+    return join(this.baseDir, normalizedPath);
+  }
+
+  // --- Read operations: try delta, fallback to base ---
+
+  async readFile(path: string): Promise<Buffer>;
+  async readFile(path: string, encoding: BufferEncoding): Promise<string>;
+  async readFile(path: string, options?: ...): Promise<Buffer | string> {
+    const p = this.normalizePath(path);
+    try {
+      return await this.delta.readFile(p, ...);
+    } catch {
+      return nodeFs.readFile(this.toBasePath(p), ...);
+    }
+  }
+
+  async stat(path: string): Promise<Stats> {
+    const p = this.normalizePath(path);
+    try {
+      return await this.delta.stat(p);
+    } catch {
+      const nodeStat = await nodeFs.stat(this.toBasePath(p));
+      return convertToAgentFsStats(nodeStat);
+    }
+  }
+
+  async readdir(path: string): Promise<string[]> {
+    const p = this.normalizePath(path);
+    const entries = new Set<string>();
+    // Delta のエントリ
+    try { for (const e of await this.delta.readdir(p)) entries.add(e); } catch {}
+    // Base のエントリ
+    try { for (const e of await nodeFs.readdir(this.toBasePath(p))) entries.add(e); } catch {}
+    return [...entries];
+  }
+
+  async access(path: string): Promise<void> {
+    const p = this.normalizePath(path);
+    try { return await this.delta.access(p); } catch {}
+    await nodeFs.access(this.toBasePath(p));
+  }
+
+  async lstat(path: string): Promise<Stats> { /* same pattern */ }
+  async readlink(path: string): Promise<string> { /* same pattern */ }
+
+  // --- Write operations: delta only ---
+
+  async writeFile(path: string, data: string | Buffer, options?: ...): Promise<void> {
+    return this.delta.writeFile(this.normalizePath(path), data, options);
+  }
+
+  async mkdir(path: string): Promise<void> {
+    return this.delta.mkdir(this.normalizePath(path));
+  }
+
+  async unlink(path: string): Promise<void> {
+    return this.delta.unlink(this.normalizePath(path));
+  }
+
+  async rmdir(path: string): Promise<void> { ... }
+  async rm(path: string, options?: ...): Promise<void> { ... }
+  async rename(old: string, new_: string): Promise<void> { ... }
+  async copyFile(src: string, dest: string): Promise<void> { ... }
+  async symlink(target: string, linkpath: string): Promise<void> { ... }
+
+  // --- その他 ---
+
+  async statfs(): Promise<FilesystemStats> {
+    return this.delta.statfs();
+  }
+
+  async readdirPlus(path: string): Promise<DirEntry[]> {
+    // readdir + stat を合成
+  }
+
+  async open(path: string): Promise<FileHandle> {
+    // delta にファイルがあれば delta.open()
+    // なければ base から読んで delta にコピーしてから delta.open()
+  }
+}
+```
+
+**ヘルパー: `convertToAgentFsStats()`**
+- `node:fs` の `Stats` → agentfs-sdk の `Stats` に変換
+- `createStats()` (agentfs-sdk/dist/filesystem/interface から export) を使用
+
+**実装するメソッド一覧:**
+
+| メソッド | 方針 |
+|---|---|
+| `readFile` | delta → base フォールバック |
+| `stat` | delta → base フォールバック |
+| `lstat` | delta → base フォールバック |
+| `readdir` | delta + base マージ |
+| `readdirPlus` | delta + base マージ（stat 付き） |
+| `access` | delta → base フォールバック |
+| `readlink` | delta → base フォールバック |
+| `writeFile` | delta のみ |
+| `mkdir` | delta のみ |
+| `rmdir` | delta のみ |
+| `unlink` | delta のみ |
+| `rm` | delta のみ |
+| `rename` | delta のみ（base ファイルは CoW で先にコピー） |
+| `copyFile` | src を読んで dest を delta に書く |
+| `symlink` | delta のみ |
+| `statfs` | delta に委譲 |
+| `open` | delta → base フォールバック（CoW コピー） |
+
+### Step 2: セッション初期化でオーバーレイを構築
+
+**ファイル:** `src/agent/session.ts`
+
+Session インターフェースの `fs` を OverlayAgentFS に差し替え。
+
+```typescript
+// 変更前
+return {
+  fs: agentfs.fs,
+  ...
+};
+
+// 変更後
+import { OverlayAgentFS } from "../fs/overlay-agentfs.js";
+
+return {
+  fs: new OverlayAgentFS(agentfs.fs, cwd),
+  ...
+};
+```
+
+`createSession()` と `loadSession()` の両方を変更。
+cwd パラメータは既に両関数で使用可能（`baseDir ?? process.cwd()`）。
+
+### Step 3: just-bash に AgentFS オーバーレイを接続
+
+**ファイル:** `src/index.ts`
+
+`agentfs-sdk/just-bash` の `agentfs()` 関数を使って、OverlayAgentFS を just-bash 互換の IFileSystem に変換。
+
+```typescript
+// 変更前
+import { Bash } from "just-bash";
+const bash = new Bash();
+
+// 変更後
+import { Bash } from "just-bash";
+import { agentfs as createJustBashFs } from "agentfs-sdk/just-bash";
+
+const cwd = baseDir ?? process.cwd();
+const justBashFs = await createJustBashFs(
+  { fs: session.fs },  // session.fs = OverlayAgentFS
+  cwd                   // mountPoint = cwd パス
+);
+const bash = new Bash({ fs: justBashFs, cwd });
+```
+
+- `agentfs()` は `{ fs: FileSystem }` を受け付けて `IFileSystem` を返す
+- `mountPoint` に cwd を指定 → bash 内のパスが実パスと一致
+- AgentFsWrapper が just-bash IFileSystem → FileSystem のパスマッピングを処理
+
+### Step 4: ツールの型を `FileSystem` interface に変更
+
+**ファイル:** `src/tools/read.ts`, `src/tools/write.ts`, `src/tools/edit.ts`, `src/tools/index.ts`
+
+agentfs-sdk の export 構造:
+- `Filesystem` = `AgentFS` **class**（SQLite 実装）
+- `FileSystem` = **interface**（抽象）
+
+現在ツールは `import type { Filesystem } from "agentfs-sdk"` で class 型を使っている。
+`OverlayAgentFS` は class ではなく interface を実装するので、型を変更する必要がある。
+
+```typescript
+// 変更前（4ファイル共通）
+import type { Filesystem, ToolCalls } from "agentfs-sdk";
+
+// 変更後
+import type { FileSystem, ToolCalls } from "agentfs-sdk";
+```
+
+関数シグネチャも `fs: Filesystem` → `fs: FileSystem` に変更。
+実装ロジックは変更不要（メソッドシグネチャは同一）。
+
+### Step 5: テスト
+
+**既存テスト:** `test/read.test.ts`, `test/write.test.ts`, `test/edit.test.ts`, `test/bash.test.ts`
+- 既存のモックは `Filesystem` の部分的モック → `FileSystem` 互換なので変更最小限
+
+**新規テスト:** `test/overlay-agentfs.test.ts`
+- readFile: delta にあるファイルは delta から、ないファイルは base から読まれる
+- writeFile: delta にのみ書かれ、base は変更されない
+- readdir: delta + base のマージ結果が返る
+- stat: delta → base フォールバック
+- base にないファイルを read → エラー
+
+## 変更しないもの
+
+- `src/tools/bash.ts` - bash ツールのロジックは変更なし
+- `src/tools/definitions.ts` - ツール定義は変更なし
+- `src/agent/system-prompt.ts` - システムプロンプトは変更なし
+- `src/agent/session-manager.ts` - メッセージ管理は変更なし
+
+## 検証方法
+
+1. **ビルド確認**: `bun run build` が成功すること
+2. **テスト実行**: `bun test` が全テスト通過すること（既存 + 新規 overlay テスト）
+3. **動作確認**: `./dist/zi` を起動し、以下を試す:
+   - 「このディレクトリに何があるか見て」→ 実ファイルが一覧される
+   - 「README.md を読んで」→ 実ファイルの内容が返る（base フォールバック）
+   - bash で `ls` → 実ファイルが表示される
+   - ファイルを編集 → delta に書かれ、base は未変更
+   - 編集後に再度読む → delta の内容が返る
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/masato.yamamoto/.REDACTED.jsonl
+
+If this plan can be broken down into multiple independent tasks, consider using the TeamCreate tool to create a team and parallelize the work.
+
+---
+
+すごい！これagent でファイルの書き込みとか編集したやつを実際に反映したいときはどうすればいいの??
+
+---
+
+1 はどんな感じになる?? Ctrl-D で終了した時にこのセッションの変更をapply するためのコマンドが表示されてる感じかな?
+
+---
+
+実装しよう
+
+---
+
+この設計、仕組みを docs/ ディレクトリに残してください
+
+---
+
+check, commit, push, create a pr

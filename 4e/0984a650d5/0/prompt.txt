@@ -1,0 +1,65 @@
+Implement the following plan:
+
+# APIキー未設定時のエラーハンドリング改善
+
+## Context
+
+APIキー (ANTHROPIC_API_KEY等) が未設定の状態で zi を起動すると、Vercel AI SDK の `AI_LoadAPIKeyError` が `streamText()` 呼び出し時に発生し、スタックトレース付きの読みにくいエラーで壊れる。Agent のリトライループが設定エラーを3回リトライするため無駄な待機も発生する。
+
+## 変更内容
+
+### 1. APIキー存在確認の早期バリデーション追加 (`src/cli-runtime.ts`)
+
+- `MissingApiKeyError` クラスを追加
+- `validateApiKey(provider, env)` 関数を追加
+- プロバイダーごとの環境変数マッピング: anthropic→`ANTHROPIC_API_KEY`, openai→`OPENAI_API_KEY`, kimi→`KIMI_API_KEY`
+
+### 2. main() に早期チェックを追加 (`src/index.ts`)
+
+- L85 `applyApiKeyOverride()` の直後に `validateApiKey()` を呼ぶ
+- キーが無ければ明確なエラーメッセージを出して `process.exit(1)`
+- TUI やセッション初期化は走らない
+
+### 3. リトライ除外ロジック追加 (`src/agent/index.ts`)
+
+- catch ブロック (L209) に `isNonRetryableError()` チェックを追加
+- `error.name === "AI_LoadAPIKeyError"` なら即座に再スロー（リトライしない）
+- 早期バリデーションを通過した場合のセーフティネット
+
+### 4. Kimi プロバイダーの apiKey 修正 (`src/agent/provider.ts`)
+
+- `createKimiProvider()` で `createOpenAI()` に `apiKey: process.env.KIMI_API_KEY` を渡す
+- 現状 `applyApiKeyOverride` が `KIMI_API_KEY` に設定するが、`createOpenAI()` は `OPENAI_API_KEY` を読むため不整合がある
+
+### 5. テスト追加
+
+- `test/cli-runtime.test.ts`: `validateApiKey` の正常系/異常系テスト
+- `test/agent.test.ts`: `AI_LoadAPIKeyError` がリトライされないことのテスト
+
+## 対象ファイル
+
+- `src/cli-runtime.ts` - `MissingApiKeyError`, `validateApiKey()` 追加
+- `src/index.ts` - import追加、早期バリデーション追加
+- `src/agent/index.ts` - `isNonRetryableError()` 追加、catch修正
+- `src/agent/provider.ts` - Kimi の apiKey 修正
+- `test/cli-runtime.test.ts` - テスト追加
+- `test/agent.test.ts` - テスト追加
+
+## 動作確認
+
+```bash
+# テスト実行
+bun test
+
+# APIキー未設定で起動 → 明確なエラーメッセージで終了することを確認
+env -u ANTHROPIC_API_KEY bun run src/index.ts "hello"
+```
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/masato.yamamoto/.REDACTED.jsonl
+
+If this plan can be broken down into multiple independent tasks, consider using the TeamCreate tool to create a team and parallelize the work.
+
+---
+
+branch / commit / push / create a pr
