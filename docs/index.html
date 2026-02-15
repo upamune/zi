@@ -3,10 +3,10 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>xi | Fully-Trackable Coding Agent</title>
+		<title>xi | Isolated Copy-on-Write Coding Agent</title>
 		<meta
 			name="description"
-			content="xi (pronounced like Ξ) is a minimal, fully-trackable coding agent with SQLite-backed auditability and production-ready tool execution."
+			content="xi (/ksaɪ/) is an isolated copy-on-write coding agent. Keep real files untouched, then apply diff when ready."
 		/>
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24,135 +24,93 @@
 			<div class="brand">
 				<span class="glyph">Ξ</span>
 				<span class="wordmark">xi</span>
+				<span class="pronunciation">/ksaɪ/</span>
 			</div>
 			<nav>
 				<a href="#overview">Overview</a>
-				<a href="#features">Differences</a>
-				<a href="#demo">Demo</a>
+				<a href="#features">Features</a>
 			</nav>
-			<a class="header-cta" href="https://github.com" target="_blank" rel="noreferrer">View on GitHub</a>
+			<a class="header-cta" href="https://github.com/upamune/xi" target="_blank" rel="noreferrer">GitHub</a>
 		</header>
 
 		<main>
 			<section class="hero reveal" data-delay="120">
-				<p class="eyebrow">Built in San Francisco style. Grounded in traceability.</p>
+				<p class="eyebrow">xi /ksaɪ/</p>
 				<h1>
-					A coding agent you can
-					<span>actually trust</span>
+					Isolated edits.
+					<span>Real files untouched.</span>
 				</h1>
-				<p class="hero-copy">
-					xi (pronounced like Ξ) is a minimal coding agent built with Bun + TypeScript. Every read,
-					write, edit, and bash operation is logged to SQLite through AgentFS for complete, queryable
-					audit trails.
-				</p>
+				<p class="hero-copy">Run agents in a CoW layer. Apply only when ready.</p>
 				<div class="hero-actions">
-					<a href="#demo" class="btn btn-solid">Watch Demo</a>
-					<a href="#features" class="btn btn-ghost">Why xi is different</a>
+					<a href="https://github.com/upamune/xi" class="btn btn-solid" target="_blank" rel="noreferrer">Open on GitHub</a>
+					<a href="#features" class="btn btn-ghost">See Features</a>
 				</div>
 				<div class="hero-metrics">
 					<div>
-						<span>100%</span>
-						<p>Tool operation traceability</p>
+						<span>No sandbox required</span>
+						<p>Real filesystem stays untouched while the agent runs</p>
 					</div>
 					<div>
-						<span>SQLite-native</span>
-						<p>Session data in one inspectable DB</p>
+						<span>Copy-on-Write</span>
+						<p>Only changed files are materialized</p>
 					</div>
 					<div>
-						<span>Bun + TS</span>
-						<p>Fast runtime with strict typing</p>
+						<span>Apply on exit</span>
+						<p>Promote diffs when you explicitly decide</p>
 					</div>
 				</div>
 			</section>
 
 			<section class="panel reveal" id="overview" data-delay="180">
 				<div class="panel-head">
-					<p>01. What xi is</p>
-					<h2>Minimal surface area. Maximum accountability.</h2>
+					<p>01. Overview</p>
+					<h2>A local-first coding agent with an explicit apply boundary.</h2>
 				</div>
 				<div class="overview-grid">
 					<article>
-						<h3>Agent runtime</h3>
-						<p>
-							xi runs as a terminal-native agent with model provider abstraction, deterministic tool wiring,
-							and explicit session boundaries.
-						</p>
+						<h3>Isolated Layer</h3>
+						<p>No direct writes to your real filesystem while running.</p>
 					</article>
 					<article>
-						<h3>End-to-end observability</h3>
-						<p>
-							Each tool call is stored with timing, params, output, and errors. No black box behavior. No
-							lost context.
-						</p>
+						<h3>CoW Delta</h3>
+						<p>Fast edits with low write overhead.</p>
 					</article>
 					<article>
-						<h3>Production-minded by default</h3>
-						<p>
-							The architecture enforces controlled writes via AgentFS while allowing sandboxed execution
-							through Just Bash.
-						</p>
+						<h3>Explicit Apply</h3>
+						<p>Review and apply only the changes you want.</p>
 					</article>
 				</div>
 			</section>
 
 			<section class="panel reveal" id="features" data-delay="220">
 				<div class="panel-head">
-					<p>02. Why it's different</p>
-					<h2>Concrete differences from typical coding agents</h2>
+					<p>02. Features</p>
+					<h2>Secure by workflow. Fast by architecture.</h2>
 				</div>
 				<div class="feature-grid">
 					<article>
-						<h3>Every action is auditable</h3>
-						<p>Reads, writes, edits, shell commands, and errors are persisted in a single SQLite timeline.</p>
+						<h3>No sandbox overhead</h3>
+						<p>Local speed with isolation semantics.</p>
 					</article>
 					<article>
-						<h3>Session = portable artifact</h3>
-						<p>Each session becomes one `.db` file under `.xi/sessions/` you can inspect, archive, and diff.</p>
+						<h3>Fast iteration</h3>
+						<p>CoW keeps write cost low.</p>
 					</article>
 					<article>
-						<h3>Safe write path</h3>
-						<p>File writes flow through AgentFS SDK instead of ad-hoc shell mutation, reducing accidental drift.</p>
+						<h3>Safe promotion</h3>
+						<p>Real files change only after apply.</p>
 					</article>
 					<article>
-						<h3>Provider flexibility</h3>
-						<p>Switch providers through a unified interface using the Vercel AI SDK foundation.</p>
+						<h3>Traceable</h3>
+						<p>Every tool call is logged for audit.</p>
 					</article>
-					<article>
-						<h3>Terminal-first UX</h3>
-						<p>Built for engineers who live in the CLI and want clear execution semantics, not hidden automation.</p>
-					</article>
-					<article>
-						<h3>Trackable by design</h3>
-						<p>Auditability isn't an add-on telemetry product. It's a first-class architectural primitive.</p>
-					</article>
-				</div>
-			</section>
-
-			<section class="panel reveal" id="demo" data-delay="260">
-				<div class="panel-head">
-					<p>03. Live behavior</p>
-					<h2>Demo: real tool calls flowing through xi</h2>
-				</div>
-				<div class="demo-shell">
-					<div class="demo-topbar">
-						<div class="dots"><span></span><span></span><span></span></div>
-						<p>xi session · 2026-02-15 · sf-startup-demo.db</p>
-						<button id="replay-btn" type="button">Replay</button>
-					</div>
-					<div class="demo-body">
-						<pre id="terminal-output" aria-live="polite"></pre>
-						<aside class="timeline">
-							<h3>Execution Timeline</h3>
-							<ul id="timeline-list"></ul>
-						</aside>
-					</div>
 				</div>
 			</section>
 		</main>
 
 		<footer class="reveal" data-delay="40">
-			<p>xi · minimal, fully-trackable coding agent</p>
-			<p>Designed to feel like a first-party release from a modern SF tooling company.</p>
+			<p>xi /ksaɪ/ · isolated copy-on-write coding agent</p>
+			<p>Isolate. Iterate. Apply.</p>
 		</footer>
 
 		<script type="module" src="./main.js"></script>
