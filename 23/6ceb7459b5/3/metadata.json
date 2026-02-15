@@ -1,9 +1,11 @@
 {
   "cli_version": "0.4.4",
   "checkpoint_id": "236ceb7459b5",
+  "session_id": "ebaea225-1193-40de-928d-e03e80085c3f",
   "strategy": "manual-commit",
+  "created_at": "2026-02-15T15:38:07.505743Z",
   "branch": "feat/bear-frame-logo",
-  "checkpoints_count": 7,
+  "checkpoints_count": 3,
   "files_touched": [
     ".xi/sessions/0aa07f7a.db",
     ".xi/sessions/0aa07f7a.db-shm",
@@ -44,48 +46,24 @@
     ".xi/sessions/f00a3def.db",
     ".xi/sessions/f00a3def.db-shm",
     ".xi/sessions/f00a3def.db-wal",
-    "src/agent/index.ts",
-    "src/agent/system-prompt.ts",
-    "src/tui/index.ts",
-    "test/agent.test.ts",
-    "test/system-prompt.test.ts",
-    "test/tool-calling-e2e.test.ts"
+    "src/tui/index.ts"
   ],
-  "sessions": [
-    {
-      "metadata": "/23/6ceb7459b5/0/metadata.json",
-      "transcript": "/23/6ceb7459b5/0/full.jsonl",
-      "context": "/23/6ceb7459b5/0/context.md",
-      "content_hash": "/23/6ceb7459b5/0/content_hash.txt",
-      "prompt": "/23/6ceb7459b5/0/prompt.txt"
-    },
-    {
-      "metadata": "/23/6ceb7459b5/1/metadata.json",
-      "transcript": "/23/6ceb7459b5/1/full.jsonl",
-      "context": "/23/6ceb7459b5/1/context.md",
-      "content_hash": "/23/6ceb7459b5/1/content_hash.txt",
-      "prompt": "/23/6ceb7459b5/1/prompt.txt"
-    },
-    {
-      "metadata": "/23/6ceb7459b5/2/metadata.json",
-      "transcript": "/23/6ceb7459b5/2/full.jsonl",
-      "context": "/23/6ceb7459b5/2/context.md",
-      "content_hash": "/23/6ceb7459b5/2/content_hash.txt",
-      "prompt": "/23/6ceb7459b5/2/prompt.txt"
-    },
-    {
-      "metadata": "/23/6ceb7459b5/3/metadata.json",
-      "transcript": "/23/6ceb7459b5/3/full.jsonl",
-      "context": "/23/6ceb7459b5/3/context.md",
-      "content_hash": "/23/6ceb7459b5/3/content_hash.txt",
-      "prompt": "/23/6ceb7459b5/3/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
   "token_usage": {
-    "input_tokens": 2624,
-    "cache_creation_tokens": 486981,
-    "cache_read_tokens": 8210230,
-    "output_tokens": 17485,
-    "api_call_count": 126
-  }
+    "input_tokens": 29,
+    "cache_creation_tokens": 98615,
+    "cache_read_tokens": 1286065,
+    "output_tokens": 1684,
+    "api_call_count": 21
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-15T15:38:07.280877Z",
+    "agent_lines": 157,
+    "human_added": 37,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 197,
+    "agent_percentage": 79.69543147208121
+  },
+  "transcript_path": ".claude/projects/-Users-masato-yamamoto-ghq-github-com-upamune-xi/ebaea225-1193-40de-928d-e03e80085c3f.jsonl"
 }

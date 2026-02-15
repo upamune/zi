@@ -1,0 +1,236 @@
+Implement the following plan:
+
+# Reasoning 表示 & Tool Call 表示の追加
+
+## Context
+前回のストリーミング対応で `textStream` → `onChunk` コールバックを実装済み。
+今回は `fullStream` に切り替えて reasoning (思考過程) と tool call をリアルタイム表示する。
+
+## 表示イメージ
+```
+You:
+ファイルの中身を教えて
+
+ʕ·ᴥ·ʔ: ユーザーがファイルの中身を知りたい...    ← reasoning（薄グレー、随時書き換え）
+
+↓ tool call 開始
+
+ʕ•ᴥ•ʔ:
+  🔧 read("src/index.ts")                     ← tool call（実行中）
+  ✓ read("src/index.ts")                      ← tool call（完了）
+
+↓ テキスト応答開始
+
+ʕ•ᴥ•ʔ:
+  ✓ read("src/index.ts")
+このファイルは...                               ← テキストがストリーミング表示
+```
+
+## 変更対象ファイル
+1. `src/agent/index.ts` — `fullStream` に切り替え、コールバックを拡張
+2. `src/tui/index.ts` — reasoning 表示、tool call 表示を追加
+
+## 変更内容
+
+### 1. Agent: onChunk を StreamEvent 型に変更
+
+`src/agent/index.ts`
+
+コールバックの型を `(chunk: string) => void` から `(event: StreamEvent) => void` に変更:
+
+```typescript
+export type StreamEvent =
+  | { type: "text"; text: string }
+  | { type: "reasoning"; text: string }
+  | { type: "tool-call-start"; toolName: string; args: Record<string, unknown> }
+  | { type: "tool-call-end"; toolName: string; args: Record<string, unknown> };
+```
+
+シグネチャ:
+```typescript
+async prompt(
+  message: string,
+  signal?: AbortSignal,
+  onEvent?: (event: StreamEvent) => void,
+): Promise<AgentResponse>
+```
+
+### 2. Agent: textStream → fullStream ループに切り替え
+
+現在の `for await (const chunk of stream.textStream)` ループを `stream.fullStream` に変更:
+
+```typescript
+for await (const part of stream.fullStream) {
+  if (combinedSignal.aborted) {
+    throw new Error("Aborted");
+  }
+  switch (part.type) {
+    case "text-delta":
+      iterationContent += part.text;
+      onEvent?.({ type: "text", text: part.text });
+      break;
+    case "reasoning-delta":
+      onEvent?.({ type: "reasoning", text: part.text });
+      break;
+    // tool-call, tool-result は fullStream が emit するが、
+    // ツール実行は既存の手動ループで行うので tool-call 系イベントは通知のみ
+  }
+}
+```
+
+**注意**: `fullStream` は `tool-call` イベントも emit するが、ツール実行自体は
+既存の `await result.toolCalls` → 手動実行ループをそのまま使う。
+`tool-call-start` / `tool-call-end` イベントは TUI 表示用の通知として送る。
+
+ツールコールの通知タイミング:
+- `tool-call-start`: 既存の `for (const call of calls)` ループの各ツール実行直前
+- `tool-call-end`: 各 `tool.execute()` 完了直後
+
+### 3. TUI MessageArea: reasoning 表示
+
+MessageArea に以下の状態を追加:
+
+```typescript
+private reasoningText = "";
+```
+
+メソッド追加:
+- `setReasoning(text: string)` — reasoning テキストを追記し、最後の1行分だけ保持
+- `clearReasoning()` — reasoning をクリア
+
+render() の thinking 表示部分を改修:
+```typescript
+if (this.thinking) {
+  const bear = MessageArea.THINKING_FRAMES[this.frame % MessageArea.THINKING_FRAMES.length];
+  if (this.reasoningText) {
+    // reasoning の最後の部分を幅に収まるよう切り詰めて薄グレー表示
+    const bearPrefix = `${bear} `;
+    const maxLen = width - bearPrefix.length - 1;
+    const display = this.reasoningText.length > maxLen
+      ? "…" + this.reasoningText.slice(-(maxLen - 1))
+      : this.reasoningText;
+    lines.push(`\x1b[1;36m${bear}\x1b[0m \x1b[2m${display}\x1b[0m`);
+  } else {
+    lines.push(`\x1b[1;36m${bear}\x1b[0m `);
+    lines.push("\x1b[2m...\x1b[0m");
+  }
+  lines.push("");
+}
+```
+
+### 4. TUI MessageArea: tool call 表示
+
+状態追加:
+```typescript
+interface ToolCallStatus {
+  toolName: string;
+  args: Record<string, unknown>;
+  done: boolean;
+}
+private activeToolCalls: ToolCallStatus[] = [];
+```
+
+メソッド追加:
+- `addToolCall(toolName, args)` — ツール開始を追加
+- `completeToolCall(toolName)` — 最新の該当ツールを完了にする
+- `clearToolCalls()` — クリア
+
+render() にツール表示を追加（streaming 中のメッセージの後、または thinking 表示の前）:
+```typescript
+if (this.activeToolCalls.length > 0) {
+  for (const tc of this.activeToolCalls) {
+    const icon = tc.done ? "✓" : "⟳";
+    const style = tc.done ? "\x1b[2m" : "\x1b[33m";  // 完了=dim、実行中=yellow
+    const argStr = formatToolArgs(tc.args);
+    lines.push(`${style}  ${icon} ${tc.toolName}(${argStr})\x1b[0m`);
+  }
+}
+```
+
+`formatToolArgs` ヘルパー: 引数を短く表示（パス系はファイル名だけ、長い文字列は省略）
+
+### 5. TUI handleSubmit: イベントハンドリング改修
+
+```typescript
+const response = await this.agent.prompt(text, undefined, (event) => {
+  switch (event.type) {
+    case "reasoning":
+      this.messageArea.setReasoning(event.text);
+      this.tui.requestRender();
+      break;
+    case "text":
+      if (!streamStarted) {
+        streamStarted = true;
+        this.messageArea.stopThinking();
+        this.messageArea.clearReasoning();
+        this.messageArea.startStreamingMessage();
+      }
+      this.messageArea.appendToStream(event.text);
+      this.tui.requestRender();
+      break;
+    case "tool-call-start":
+      this.messageArea.stopThinking();
+      this.messageArea.clearReasoning();
+      this.messageArea.addToolCall(event.toolName, event.args);
+      this.tui.requestRender();
+      break;
+    case "tool-call-end":
+      this.messageArea.completeToolCall(event.toolName);
+      this.tui.requestRender();
+      break;
+  }
+});
+```
+
+ストリーム完了時に `clearToolCalls()` を呼ぶ。
+
+### 6. テストモックの更新
+
+`test/agent.test.ts` と `test/tool-calling-e2e.test.ts` の `createMockStreamResult` で
+`textStream` の代わりに `fullStream` を提供する必要がある:
+
+```typescript
+function createMockStreamResult(text: string, toolCalls?: ...): StreamTextResult<never, never> {
+  const fullStreamParts = text.split("").map((ch) => ({ type: "text-delta" as const, text: ch }));
+  return {
+    fullStream: asyncGenerator(fullStreamParts),
+    text: Promise.resolve(text),
+    toolCalls: Promise.resolve(toolCalls ?? []),
+    usage: Promise.resolve({ promptTokens: 0, completionTokens: 0, totalTokens: 0 }),
+    finishReason: Promise.resolve("stop"),
+  } as unknown as StreamTextResult<never, never>;
+}
+```
+
+`textStream` プロパティは残しても消してもよい（`as unknown` キャストしているため）。
+
+## 検証
+- `bun run typecheck` で型チェック通過
+- `bun test` で全テスト通過
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/masato.yamamoto/.REDACTED.jsonl
+
+If this plan can be broken down into multiple independent tasks, consider using the TeamCreate tool to create a team and parallelize the work.
+
+---
+
+ここらへんの色が下の入力枠と同じだから色を変えたい
+
+---
+
+Session: f00a3def │ anthropic/claude-sonnet-4-5
+ʕ˘ᴥ˘ʔ────────────────ʕ·ᴥ·ʔ
+│   __  __ _             │
+│   \ \/ /(_)            │
+│    >  < | |            │
+│   /_/\_\|_|  v0.1.0    │
+ʕ-ᴥ-ʔ────────────────ʕ•ᴥ•ʔ
+
+---
+
+下の熊の帯の背景が白すぎる
+
+---
+
+commit & push
