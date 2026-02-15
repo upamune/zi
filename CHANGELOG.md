@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.1.2](https://github.com/upamune/xi/compare/v0.1.1...v0.1.2) - 2026-02-15
+- Add polished GitHub Pages landing page for xi by @upamune in https://github.com/upamune/xi/pull/11
+- feat(tui): redesign terminal UI with polished pi-mono style by @upamune in https://github.com/upamune/xi/pull/13
+
 ## [v0.1.1](https://github.com/upamune/xi/compare/v0.1.0...v0.1.1) - 2026-02-14
 - feat: APIキー未設定時のエラーハンドリング改善 by @upamune in https://github.com/upamune/xi/pull/8
 - rename: プロジェクト名を zi から xi にリネーム by @upamune in https://github.com/upamune/xi/pull/10
