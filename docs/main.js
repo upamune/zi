@@ -13,7 +13,7 @@ const observer = new IntersectionObserver(
 			}
 		}
 	},
-	{ threshold: 0.18 },
+	{ threshold: 0.18 }
 );
 
 for (const el of revealEls) {
