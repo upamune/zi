@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>xi | Isolated Copy-on-Write Coding Agent</title>
+		<meta
+			name="description"
+			content="xi (/ksaɪ/) is an isolated copy-on-write coding agent. Keep real files untouched, then apply diff when ready."
+		/>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Syne:wght@500;700;800&display=swap"
+			rel="stylesheet"
+		/>
+		<link rel="stylesheet" href="./styles.css" />
+	</head>
+	<body>
+		<div class="ambient ambient-a"></div>
+		<div class="ambient ambient-b"></div>
+
+		<header class="site-header reveal" data-delay="0">
+			<div class="brand">
+				<span class="glyph">Ξ</span>
+				<span class="wordmark">xi</span>
+				<span class="pronunciation">/ksaɪ/</span>
+			</div>
+			<nav>
+				<a href="#overview">Overview</a>
+				<a href="#features">Features</a>
+			</nav>
+			<a class="header-cta" href="https://github.com/upamune/xi" target="_blank" rel="noreferrer">GitHub</a>
+		</header>
+
+		<main>
+			<section class="hero reveal" data-delay="120">
+				<p class="eyebrow">xi /ksaɪ/</p>
+				<h1>
+					Isolated edits.
+					<span>Real files untouched.</span>
+				</h1>
+				<p class="hero-copy">Run agents in a CoW layer. Apply only when ready.</p>
+				<div class="hero-actions">
+					<a href="https://github.com/upamune/xi" class="btn btn-solid" target="_blank" rel="noreferrer">Open on GitHub</a>
+					<a href="#features" class="btn btn-ghost">See Features</a>
+				</div>
+				<div class="hero-metrics">
+					<div>
+						<span>No sandbox required</span>
+						<p>Real filesystem stays untouched while the agent runs</p>
+					</div>
+					<div>
+						<span>Copy-on-Write</span>
+						<p>Only changed files are materialized</p>
+					</div>
+					<div>
+						<span>Apply on exit</span>
+						<p>Promote diffs when you explicitly decide</p>
+					</div>
+				</div>
+			</section>
+
+			<section class="panel reveal" id="overview" data-delay="180">
+				<div class="panel-head">
+					<p>01. Overview</p>
+					<h2>A local-first coding agent with an explicit apply boundary.</h2>
+				</div>
+				<div class="overview-grid">
+					<article>
+						<h3>Isolated Layer</h3>
+						<p>No direct writes to your real filesystem while running.</p>
+					</article>
+					<article>
+						<h3>CoW Delta</h3>
+						<p>Fast edits with low write overhead.</p>
+					</article>
+					<article>
+						<h3>Explicit Apply</h3>
+						<p>Review and apply only the changes you want.</p>
+					</article>
+				</div>
+			</section>
+
+			<section class="panel reveal" id="features" data-delay="220">
+				<div class="panel-head">
+					<p>02. Features</p>
+					<h2>Secure by workflow. Fast by architecture.</h2>
+				</div>
+				<div class="feature-grid">
+					<article>
+						<h3>No sandbox overhead</h3>
+						<p>Local speed with isolation semantics.</p>
+					</article>
+					<article>
+						<h3>Fast iteration</h3>
+						<p>CoW keeps write cost low.</p>
+					</article>
+					<article>
+						<h3>Safe promotion</h3>
+						<p>Real files change only after apply.</p>
+					</article>
+					<article>
+						<h3>Traceable</h3>
+						<p>Every tool call is logged for audit.</p>
+					</article>
+				</div>
+			</section>
+		</main>
+
+		<footer class="reveal" data-delay="40">
+			<p>xi /ksaɪ/ · isolated copy-on-write coding agent</p>
+			<p>Isolate. Iterate. Apply.</p>
+		</footer>
+
+		<script type="module" src="./main.js"></script>
+	</body>
+</html>
