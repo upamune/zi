@@ -73,9 +73,15 @@ Additional providers can be added by extending the provider registry.
 
 ## Quick Start
 
-```bash
-bun install -g xi
+### Install
 
+```bash
+mise use -g github:upamune/xi@latest
+```
+
+### Usage
+
+```bash
 # Set API key
 export ANTHROPIC_API_KEY=sk-ant-...
 
