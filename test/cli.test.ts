@@ -418,6 +418,7 @@ COMMANDS:
   list
   config
   apply <session-id>            Apply file changes from a session to disk
+  browse                        Browse sessions in a web UI
 
 OPTIONS:
   -c, --continue      Continue from last session

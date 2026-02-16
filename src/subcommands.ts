@@ -3,6 +3,7 @@ import * as nodeFs from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { openSessionForApply } from "./agent/session.js";
+import { startBrowseServer } from "./browse/index.js";
 import type { CliCommand } from "./cli.js";
 import { getGlobalConfigDir, getProjectConfigPath, loadConfig } from "./config/index.js";
 
@@ -238,6 +239,9 @@ export async function runSubcommand(
 			return;
 		case "apply":
 			await applySession(command.source as string, cwd, sessionDir);
+			return;
+		case "browse":
+			await startBrowseServer(cwd);
 			return;
 	}
 }
