@@ -14,7 +14,8 @@
 		"typecheck": "tsc --noEmit",
 		"lint": "biome check .",
 		"format": "biome format --write .",
-		"check": "biome check --write . && tsc --noEmit"
+		"check": "biome check --write . && tsc --noEmit",
+		"knip": "knip"
 	},
 	"dependencies": {
 		"@ai-sdk/anthropic": "^3.0.44",
@@ -29,6 +30,8 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.0",
 		"@types/bun": "latest",
+		"@types/node": "^25.3.0",
+		"knip": "^5.85.0",
 		"typescript": "^5.9.0"
 	},
 	"keywords": [
