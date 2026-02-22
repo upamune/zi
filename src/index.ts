@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { Bash } from "just-bash";
+import {
+	DEFAULT_AGENTS_BYTE_BUDGET,
+	loadAgentsDocs,
+	renderAgentsDocs,
+} from "./agent/agents-doc.js";
 import { Agent } from "./agent/index.js";
 import { createProvider, getModelsByProvider, type ProviderName } from "./agent/provider.js";
 import { createSession, listSessions, loadSession, sessionExists } from "./agent/session.js";
-import {
-	loadAgentsDocs,
-	renderAgentsDocs,
-	DEFAULT_AGENTS_BYTE_BUDGET,
-} from "./agent/agents-doc.js";
 import { buildSystemPrompt } from "./agent/system-prompt.js";
 import { parseCliArgs, printHelp, printVersion } from "./cli.js";
 import {

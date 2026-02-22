@@ -2,11 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-	loadAgentsDocs,
-	renderAgentsDocs,
-	type AgentsDoc,
-} from "../src/agent/agents-doc.js";
+import { type AgentsDoc, loadAgentsDocs, renderAgentsDocs } from "../src/agent/agents-doc.js";
 
 async function createTempDir(): Promise<string> {
 	return mkdtemp(join(tmpdir(), "xi-agents-doc-"));
