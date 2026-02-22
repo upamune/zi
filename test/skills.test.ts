@@ -56,6 +56,25 @@ describe("skills", () => {
 		expect(catalog.skills[0]?.description).toBe("project skill");
 	});
 
+	test("should prioritize skills closer to cwd", async () => {
+		await mkdir(join(rootDir, ".xi", "skills", "alpha"), { recursive: true });
+		await mkdir(join(rootDir, ".xi", "skills", "nested", "beta"), { recursive: true });
+		await writeFile(
+			join(rootDir, ".xi", "skills", "alpha", "SKILL.md"),
+			"---\nname: alpha\ndescription: alpha\n---\nalpha",
+			"utf-8"
+		);
+		await writeFile(
+			join(rootDir, ".xi", "skills", "nested", "beta", "SKILL.md"),
+			"---\nname: beta\ndescription: beta\n---\nbeta",
+			"utf-8"
+		);
+
+		const cwd = join(rootDir, ".xi", "skills", "nested");
+		const catalog = await discoverSkills({ cwd, useCache: false });
+		expect(catalog.skills.map((skill) => skill.name)).toEqual(["beta", "alpha"]);
+	});
+
 	test("should fail open when a skill file is invalid", async () => {
 		await mkdir(join(rootDir, ".xi", "skills", "ok"), { recursive: true });
 		await mkdir(join(rootDir, ".xi", "skills", "broken"), { recursive: true });
@@ -96,6 +115,32 @@ describe("skills", () => {
 		const selection = resolveSkillSelection(catalog, config);
 		expect(selection.active).toEqual([]);
 		expect(selection.inactive.map((skill) => skill.name)).toEqual(["alpha"]);
+	});
+
+	test("should prioritize explicit cli skills over disabled config", async () => {
+		await mkdir(join(rootDir, ".xi", "skills", "qmd"), { recursive: true });
+		await writeFile(
+			join(rootDir, ".xi", "skills", "qmd", "SKILL.md"),
+			"---\nname: qmd\ndescription: qmd\n---\nqmd",
+			"utf-8"
+		);
+
+		const catalog = await discoverSkills({ cwd: rootDir, useCache: false });
+		const selection = resolveSkillSelection(
+			catalog,
+			{
+				enabledSkills: [],
+				disabledSkills: ["qmd"],
+				skillsOff: false,
+			},
+			{
+				cliSkillNames: ["qmd"],
+				noSkills: false,
+			}
+		);
+
+		expect(selection.active.map((skill) => skill.name)).toEqual(["qmd"]);
+		expect(selection.inactive).toEqual([]);
 	});
 
 	test("should not leak global enabled skills into project config", async () => {

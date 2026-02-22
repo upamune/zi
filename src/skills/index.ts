@@ -158,7 +158,7 @@ function affinityScore(skill: SkillDefinition, cwd: string): number {
 		return Number.POSITIVE_INFINITY;
 	}
 	const skillDir = dirname(skill.path);
-	const rel = relative(skillDir, cwd);
+	const rel = relative(cwd, skillDir);
 	if (rel === "") {
 		return 0;
 	}
@@ -308,13 +308,15 @@ export function resolveSkillSelection(
 
 	for (const skill of catalog.skills) {
 		const key = normalizeSkillName(skill.name);
-		const skillDisabled = runtime.noSkills || config.skillsOff || disabled.has(key);
+		const explicitlySelected = explicit.has(key);
+		const skillDisabled =
+			runtime.noSkills || ((config.skillsOff || disabled.has(key)) && !explicitlySelected);
 		if (skillDisabled) {
 			inactive.push(skill);
 			continue;
 		}
 		if (explicit.size > 0) {
-			if (explicit.has(key)) {
+			if (explicitlySelected) {
 				active.push(skill);
 			} else {
 				inactive.push(skill);
