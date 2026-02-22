@@ -3,6 +3,11 @@ import { Bash } from "just-bash";
 import { Agent } from "./agent/index.js";
 import { createProvider, getModelsByProvider, type ProviderName } from "./agent/provider.js";
 import { createSession, listSessions, loadSession, sessionExists } from "./agent/session.js";
+import {
+	loadAgentsDocs,
+	renderAgentsDocs,
+	DEFAULT_AGENTS_BYTE_BUDGET,
+} from "./agent/agents-doc.js";
 import { buildSystemPrompt } from "./agent/system-prompt.js";
 import { parseCliArgs, printHelp, printVersion } from "./cli.js";
 import {
@@ -141,6 +146,8 @@ async function main(): Promise<void> {
 	const bash = new Bash({ fs: bashFs, cwd });
 	const tools = createToolRegistry(bash, session.fs, session.tools, selectedTools.enabledTools);
 	const provider = createProvider(config);
+	const agentsDocs = await loadAgentsDocs({ cwd: process.cwd() });
+	const agentsInstructions = renderAgentsDocs(agentsDocs, DEFAULT_AGENTS_BYTE_BUDGET).text;
 
 	const agent = new Agent({
 		session,
@@ -150,6 +157,7 @@ async function main(): Promise<void> {
 			systemPrompt: buildSystemPrompt({
 				customPrompt: args.systemPrompt ?? undefined,
 				appendSystemPrompt: args.appendSystemPrompt ?? undefined,
+				agentsInstructions: agentsInstructions || undefined,
 			}),
 			maxRetries: 3,
 			enabledTools: selectedTools.enabledTools,
