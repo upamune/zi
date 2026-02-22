@@ -43,6 +43,26 @@ describe("parseCliArgs", () => {
 		test("should throw when install source is missing", () => {
 			expect(() => parseCliArgs(["install"])).toThrow("install requires <source>");
 		});
+
+		test("should parse skill list command", () => {
+			const result = parseCliArgs(["skill", "list"]);
+			expect(result.command).toEqual({
+				name: "skill",
+				action: "list",
+				source: null,
+				local: false,
+			});
+		});
+
+		test("should parse skill enable command", () => {
+			const result = parseCliArgs(["skill", "enable", "qmd", "--local"]);
+			expect(result.command).toEqual({
+				name: "skill",
+				action: "enable",
+				source: "qmd",
+				local: true,
+			});
+		});
 	});
 
 	describe("positional prompt arguments", () => {
@@ -191,6 +211,18 @@ describe("parseCliArgs", () => {
 			const result = parseCliArgs([]);
 			expect(result.tools).toBeNull();
 			expect(result.noTools).toBe(false);
+		});
+	});
+
+	describe("--skill and --no-skills flags", () => {
+		test("should parse repeated --skill flags", () => {
+			const result = parseCliArgs(["--skill", "qmd", "--skill", "spotify-api"]);
+			expect(result.skills).toEqual(["qmd", "spotify-api"]);
+		});
+
+		test("should parse --no-skills flag", () => {
+			const result = parseCliArgs(["--no-skills"]);
+			expect(result.noSkills).toBe(true);
 		});
 	});
 
@@ -372,6 +404,8 @@ describe("parseCliArgs", () => {
 				sessionDir: null,
 				tools: null,
 				noTools: false,
+				skills: [],
+				noSkills: false,
 				thinking: null,
 				listModels: false,
 				models: null,
@@ -417,6 +451,7 @@ COMMANDS:
   update [source]
   list
   config
+  skill [list|enable|disable|on|off] [name] [-l, --local]
   apply <session-id>            Apply file changes from a session to disk
   browse                        Browse sessions in a web UI
 
@@ -429,6 +464,8 @@ OPTIONS:
   --session-dir <DIR> Session directory root
   --tools <LIST>      Enable only selected tools (comma-separated)
   --no-tools          Disable all tools
+  --skill <NAME>      Enable only selected skills (repeatable)
+  --no-skills         Disable all skills for this run
   --thinking <LEVEL>  Thinking level (off, minimal, low, medium, high)
   --list-models       List models for selected provider
   --models <PATTERNS> Comma-separated model filter patterns
@@ -450,6 +487,7 @@ EXAMPLES:
   xi --resume --session abc123 "Continue from session"
   xi --list-models --provider anthropic
   xi install github:owner/repo
+  xi skill enable qmd
 `,
 		]);
 	});

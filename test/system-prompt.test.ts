@@ -15,10 +15,12 @@ describe("buildSystemPrompt", () => {
 			customPrompt: "You are custom",
 			appendSystemPrompt: "Always run tests",
 			agentsInstructions: "Project instructions from AGENTS files:\n\n# AGENTS.md\nUse pnpm",
+			skillsInstructions: "Available skills:\n- qmd: search local notes",
 			cwd: "/tmp/project",
 		});
 		expect(prompt).toContain("You are custom");
 		expect(prompt).toContain("Always run tests");
 		expect(prompt).toContain("Project instructions from AGENTS files:");
+		expect(prompt).toContain("Available skills:");
 	});
 });

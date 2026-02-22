@@ -2,6 +2,7 @@ export interface BuildSystemPromptOptions {
 	customPrompt?: string;
 	appendSystemPrompt?: string;
 	agentsInstructions?: string;
+	skillsInstructions?: string;
 	cwd?: string;
 }
 
@@ -39,6 +40,9 @@ Guidelines:
 	}
 	if (options.agentsInstructions) {
 		prompt += `\n\n${options.agentsInstructions}`;
+	}
+	if (options.skillsInstructions) {
+		prompt += `\n\n${options.skillsInstructions}`;
 	}
 
 	prompt += `\n\nCurrent date and time: ${now}`;

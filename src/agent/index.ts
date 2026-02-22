@@ -7,6 +7,7 @@ import type { SessionTreeNode } from "./session-types.js";
 
 export interface AgentConfig {
 	systemPrompt?: string;
+	resolveSystemPromptAppendix?: (message: string) => string | Promise<string>;
 	maxRetries?: number;
 	maxToolIterations?: number;
 	enabledTools?: ToolName[];
@@ -86,6 +87,9 @@ export class Agent {
 			role: "user",
 			content: message,
 		});
+		const systemPromptAppendix = this.config.resolveSystemPromptAppendix
+			? await this.config.resolveSystemPromptAppendix(message)
+			: "";
 
 		this.abortController = new AbortController();
 		const combinedSignal = signal
@@ -112,7 +116,7 @@ export class Agent {
 
 					const stream = await this.provider.streamText({
 						messages,
-						systemPrompt: buildPromptWithThinking(this.config),
+						systemPrompt: buildPromptWithThinking(this.config, systemPromptAppendix),
 						abortSignal: combinedSignal,
 						tools: getToolDefinitions(
 							this.config.enabledTools ?? ["read", "write", "edit", "bash"]
@@ -278,14 +282,15 @@ export function isNonRetryableError(error: unknown): boolean {
 	return false;
 }
 
-function buildPromptWithThinking(config: AgentConfig): string | undefined {
+function buildPromptWithThinking(config: AgentConfig, appendix: string = ""): string | undefined {
 	if (!config.systemPrompt) {
 		return undefined;
 	}
+	const fullPrompt = appendix ? `${config.systemPrompt}\n\n${appendix}` : config.systemPrompt;
 	if (!config.thinking || config.thinking === "off") {
-		return config.systemPrompt;
+		return fullPrompt;
 	}
-	return `${config.systemPrompt}\n\nThinking level: ${config.thinking}`;
+	return `${fullPrompt}\n\nThinking level: ${config.thinking}`;
 }
 
 export async function createAgent(

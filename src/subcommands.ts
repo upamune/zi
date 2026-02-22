@@ -6,6 +6,7 @@ import { openSessionForApply } from "./agent/session.js";
 import { startBrowseServer } from "./browse/index.js";
 import type { CliCommand } from "./cli.js";
 import { getGlobalConfigDir, getProjectConfigPath, loadConfig } from "./config/index.js";
+import { formatSkillsList, setSkillsOff, updateSkillPreference } from "./skills/index.js";
 
 interface PackageEntry {
 	source: string;
@@ -209,6 +210,7 @@ export async function runSubcommand(
 	sessionDir?: string
 ): Promise<void> {
 	const scope: "global" | "local" = command.local ? "local" : "global";
+	const configScope: "global" | "project" = command.local ? "project" : "global";
 	switch (command.name) {
 		case "install":
 			installSource(command.source as string, scope, cwd);
@@ -243,5 +245,25 @@ export async function runSubcommand(
 		case "browse":
 			await startBrowseServer(cwd);
 			return;
+		case "skill": {
+			const action = command.action ?? "list";
+			if (action === "list") {
+				console.log(await formatSkillsList(cwd));
+				return;
+			}
+			if (action === "on") {
+				await setSkillsOff(false, configScope, cwd);
+				console.log(`Skills enabled (${scope})`);
+				return;
+			}
+			if (action === "off") {
+				await setSkillsOff(true, configScope, cwd);
+				console.log(`Skills disabled (${scope})`);
+				return;
+			}
+			await updateSkillPreference(command.source as string, action, configScope, cwd);
+			console.log(`Skill ${action}d: ${command.source} (${scope})`);
+			return;
+		}
 	}
 }

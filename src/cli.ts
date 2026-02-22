@@ -2,7 +2,8 @@ import { parseArgs } from "node:util";
 import { NAME, VERSION } from "./config/index.js";
 
 export interface CliCommand {
-	name: "install" | "remove" | "update" | "list" | "config" | "apply" | "browse";
+	name: "install" | "remove" | "update" | "list" | "config" | "apply" | "browse" | "skill";
+	action?: "list" | "enable" | "disable" | "on" | "off";
 	source: string | null;
 	local: boolean;
 }
@@ -16,6 +17,8 @@ export interface CliArgs {
 	sessionDir: string | null;
 	tools: string | null;
 	noTools: boolean;
+	skills: string[];
+	noSkills: boolean;
 	thinking: "off" | "minimal" | "low" | "medium" | "high" | null;
 	listModels: boolean;
 	models: string | null;
@@ -63,6 +66,14 @@ export function parseCliArgs(args: string[] = process.argv.slice(2)): CliArgs {
 				type: "string",
 			},
 			"no-tools": {
+				type: "boolean",
+				default: false,
+			},
+			skill: {
+				type: "string",
+				multiple: true,
+			},
+			"no-skills": {
 				type: "boolean",
 				default: false,
 			},
@@ -129,6 +140,8 @@ export function parseCliArgs(args: string[] = process.argv.slice(2)): CliArgs {
 		sessionDir: values["session-dir"] ?? null,
 		tools: values.tools ?? null,
 		noTools: values["no-tools"],
+		skills: values.skill ?? [],
+		noSkills: values["no-skills"],
 		thinking:
 			(values.thinking as "off" | "minimal" | "low" | "medium" | "high" | undefined) ?? null,
 		listModels: values["list-models"],
@@ -151,9 +164,25 @@ function parseCommand(positionals: string[], local: boolean): CliCommand | null 
 	const name = positionals[0];
 	if (
 		!name ||
-		!["install", "remove", "update", "list", "config", "apply", "browse"].includes(name)
+		!["install", "remove", "update", "list", "config", "apply", "browse", "skill"].includes(name)
 	) {
 		return null;
+	}
+	if (name === "skill") {
+		const action = positionals[1] ?? "list";
+		if (!["list", "enable", "disable", "on", "off"].includes(action)) {
+			throw new Error(`skill action must be one of: list, enable, disable, on, off`);
+		}
+		const source = positionals[2] ?? null;
+		if ((action === "enable" || action === "disable") && !source) {
+			throw new Error(`skill ${action} requires <name>`);
+		}
+		return {
+			name: "skill",
+			action: action as CliCommand["action"],
+			source,
+			local,
+		};
 	}
 	const source = positionals[1] ?? null;
 	if ((name === "install" || name === "remove" || name === "apply") && !source) {
@@ -179,6 +208,7 @@ COMMANDS:
   update [source]
   list
   config
+  skill [list|enable|disable|on|off] [name] [-l, --local]
   apply <session-id>            Apply file changes from a session to disk
   browse                        Browse sessions in a web UI
 
@@ -191,6 +221,8 @@ OPTIONS:
   --session-dir <DIR> Session directory root
   --tools <LIST>      Enable only selected tools (comma-separated)
   --no-tools          Disable all tools
+  --skill <NAME>      Enable only selected skills (repeatable)
+  --no-skills         Disable all skills for this run
   --thinking <LEVEL>  Thinking level (off, minimal, low, medium, high)
   --list-models       List models for selected provider
   --models <PATTERNS> Comma-separated model filter patterns
@@ -212,6 +244,7 @@ EXAMPLES:
   xi --resume --session abc123 "Continue from session"
   xi --list-models --provider anthropic
   xi install github:owner/repo
+  xi skill enable qmd
 `);
 }
 

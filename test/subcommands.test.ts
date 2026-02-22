@@ -78,4 +78,12 @@ describe("subcommands", () => {
 			runSubcommand({ name: "config", source: null, local: false }, join(cwd, "missing"))
 		).rejects.toThrow("Directory not found");
 	});
+
+	test("skill list should succeed", async () => {
+		await runSubcommand({ name: "skill", action: "list", source: null, local: false }, cwd);
+	});
+
+	test("skill enable should persist without error", async () => {
+		await runSubcommand({ name: "skill", action: "enable", source: "qmd", local: true }, cwd);
+	});
 });

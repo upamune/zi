@@ -9,12 +9,18 @@ export interface Config {
 	provider: "anthropic" | "openai" | "kimi";
 	model: string;
 	thinking: "off" | "minimal" | "low" | "medium" | "high";
+	enabledSkills: string[];
+	disabledSkills: string[];
+	skillsOff: boolean;
 }
 
 export const DEFAULT_CONFIG: Config = {
 	provider: "anthropic",
 	model: "claude-sonnet-4-5",
 	thinking: "medium",
+	enabledSkills: [],
+	disabledSkills: [],
+	skillsOff: false,
 };
 
 const GLOBAL_CONFIG_DIR = join(homedir(), ".xi");

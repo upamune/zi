@@ -202,6 +202,9 @@ describe("Config", () => {
 			expect(DEFAULT_CONFIG.provider).toBe("anthropic");
 			expect(DEFAULT_CONFIG.model).toBe("claude-sonnet-4-5");
 			expect(DEFAULT_CONFIG.thinking).toBe("medium");
+			expect(DEFAULT_CONFIG.enabledSkills).toEqual([]);
+			expect(DEFAULT_CONFIG.disabledSkills).toEqual([]);
+			expect(DEFAULT_CONFIG.skillsOff).toBe(false);
 		});
 	});
 });

@@ -14,13 +14,15 @@ import {
 	wrapTextWithAnsi,
 } from "@mariozechner/pi-tui";
 import type { ModelMessage } from "ai";
-import type { Agent, AgentResponse, StreamEvent } from "@/agent/index.js";
+import type { Agent, StreamEvent } from "@/agent/index.js";
 import { VERSION } from "@/config/index.js";
+import { formatSkillsList, setSkillsOff, updateSkillPreference } from "@/skills/index.js";
 
 export interface TuiOptions {
 	sessionId: string;
 	model: string;
 	provider: string;
+	cwd: string;
 }
 
 export interface MessageItem {
@@ -424,6 +426,8 @@ class HelpOverlay implements Component {
 			"Ctrl+D           Exit when editor is empty",
 			"Ctrl+L           Clear visible chat messages",
 			"Ctrl+G           Toggle this help",
+			"/skills          Show discovered skills",
+			"/skill ...       Enable/disable skills for project",
 			"Esc              Close this dialog",
 		];
 		const lines = [
@@ -456,10 +460,12 @@ export class ZiTui {
 	private spinnerFrameIndex = 0;
 	private spinnerTimer: Timer | null = null;
 	private helpOverlay: OverlayHandle | null = null;
+	private cwd: string;
 	onExit?: () => void;
 
 	constructor(agent: Agent, options: TuiOptions) {
 		this.agent = agent;
+		this.cwd = options.cwd;
 
 		const terminal = new ProcessTerminal();
 		this.tui = new TUI(terminal, true);
@@ -530,7 +536,12 @@ export class ZiTui {
 	}
 
 	private async handleSubmit(text: string): Promise<void> {
-		if (!text.trim()) {
+		const trimmed = text.trim();
+		if (!trimmed) {
+			return;
+		}
+		if (trimmed.startsWith("/")) {
+			await this.handleSlashCommand(trimmed);
 			return;
 		}
 		if (this.inFlight) {
@@ -617,6 +628,58 @@ export class ZiTui {
 			this.editor.disableSubmit = false;
 			this.header.setInFlight(false);
 			this.promptHint.setDisabled(false);
+			this.tui.requestRender();
+		}
+	}
+
+	private async handleSlashCommand(input: string): Promise<void> {
+		this.conversationArea.addMessage({ role: "user", content: input });
+		this.editor.setText("");
+		try {
+			if (input === "/skills") {
+				const list = await formatSkillsList(this.cwd);
+				this.conversationArea.addMessage({ role: "assistant", content: list });
+				this.statusBar.setStatus({ mode: "info", text: "Skills listed" });
+				this.tui.requestRender();
+				return;
+			}
+			const tokens = input.split(/\s+/);
+			if (tokens[0] !== "/skill") {
+				throw new Error("Unknown slash command. Use /skills or /skill enable|disable|on|off");
+			}
+			const action = tokens[1];
+			const skillName = tokens.slice(2).join(" ").trim();
+			if (action === "enable" || action === "disable") {
+				if (!skillName) {
+					throw new Error(`/skill ${action} requires a skill name`);
+				}
+				await updateSkillPreference(skillName, action, "project", this.cwd);
+				this.conversationArea.addMessage({
+					role: "assistant",
+					content: `Skill ${action}d: ${skillName}`,
+				});
+				this.statusBar.setStatus({ mode: "info", text: `Skill ${action}d` });
+				this.tui.requestRender();
+				return;
+			}
+			if (action === "on" || action === "off") {
+				await setSkillsOff(action === "off", "project", this.cwd);
+				this.conversationArea.addMessage({
+					role: "assistant",
+					content: action === "off" ? "All skills disabled for this project." : "Skills enabled.",
+				});
+				this.statusBar.setStatus({ mode: "info", text: "Skill mode updated" });
+				this.tui.requestRender();
+				return;
+			}
+			throw new Error("Unknown /skill action. Use enable, disable, on, off");
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			this.conversationArea.addMessage({
+				role: "assistant",
+				content: `Error: ${message}`,
+			});
+			this.statusBar.setStatus({ mode: "error", text: message });
 			this.tui.requestRender();
 		}
 	}
