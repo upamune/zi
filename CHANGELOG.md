@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.1.5](https://github.com/upamune/xi/compare/v0.1.4...v0.1.5) - 2026-02-22
+- feat: hierarchical AGENTS.md loading and prompt injection by @upamune in https://github.com/upamune/xi/pull/19
+- feat: first-class skills system (zi-398) by @upamune in https://github.com/upamune/xi/pull/21
+- feat(tui): add slash command parser and dispatcher by @upamune in https://github.com/upamune/xi/pull/22
+- Add review guidelines and local skills docs by @upamune in https://github.com/upamune/xi/pull/23
+
 ## [v0.1.4](https://github.com/upamune/xi/compare/v0.1.3...v0.1.4) - 2026-02-16
 - feat: xi browse サブコマンドを追加 by @upamune in https://github.com/upamune/xi/pull/16
 - docs: README にmise によるインストール方法を追記 by @upamune in https://github.com/upamune/xi/pull/18
