@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runSubcommand } from "../src/subcommands.js";
@@ -85,5 +85,8 @@ describe("subcommands", () => {
 
 	test("skill enable should persist without error", async () => {
 		await runSubcommand({ name: "skill", action: "enable", source: "qmd", local: true }, cwd);
+		const content = await readFile(join(cwd, ".xi", "settings.json"), "utf-8");
+		const saved = JSON.parse(content) as { enabledSkills?: string[] };
+		expect(saved.enabledSkills).toContain("qmd");
 	});
 });

@@ -1,7 +1,7 @@
 import { access, readdir, readFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve } from "node:path";
-import type { Config } from "@/config/index.js";
-import { getGlobalConfigDir, saveConfig } from "@/config/index.js";
+import type { ConfigScope } from "@/config/index.js";
+import { getGlobalConfigDir, loadConfig, loadScopedConfig, saveConfig } from "@/config/index.js";
 
 export interface SkillDefinition {
 	name: string;
@@ -41,6 +41,12 @@ export interface SkillSelection {
 	inactive: SkillDefinition[];
 }
 
+interface SkillConfigView {
+	enabledSkills: string[];
+	disabledSkills: string[];
+	skillsOff: boolean;
+}
+
 export interface RuntimeSkillOptions {
 	cliSkillNames?: string[];
 	noSkills?: boolean;
@@ -61,10 +67,14 @@ export async function discoverSkills(options: DiscoverSkillsOptions = {}): Promi
 	}
 
 	const loader = loadSkillCatalog(cwd, projectRoot, globalRoot);
+	const wrapped = loader.catch((error) => {
+		SKILL_CACHE.delete(cacheKey);
+		throw error;
+	});
 	if (useCache) {
-		SKILL_CACHE.set(cacheKey, loader);
+		SKILL_CACHE.set(cacheKey, wrapped);
 	}
-	return loader;
+	return wrapped;
 }
 
 export function clearSkillCatalogCache(): void {
@@ -280,7 +290,7 @@ async function exists(path: string): Promise<boolean> {
 
 export function resolveSkillSelection(
 	catalog: SkillCatalog,
-	config: Config,
+	config: SkillConfigView,
 	runtime: RuntimeSkillOptions = {}
 ): SkillSelection {
 	const disabled = new Set(config.disabledSkills.map((name) => normalizeSkillName(name)));
@@ -380,14 +390,14 @@ function containsWholeWord(text: string, target: string): boolean {
 export async function updateSkillPreference(
 	skillName: string,
 	action: "enable" | "disable",
-	scope: "global" | "project",
+	scope: ConfigScope,
 	cwd?: string
 ): Promise<void> {
 	const normalized = skillName.trim();
 	if (normalized.length === 0) {
 		throw new Error("Skill name is required");
 	}
-	const config = await loadConfigByScope(cwd);
+	const config = await loadConfigByScope(scope, cwd);
 	if (action === "enable") {
 		await saveConfig(
 			{
@@ -414,9 +424,13 @@ export async function updateSkillPreference(
 	);
 }
 
-async function loadConfigByScope(cwd?: string): Promise<Config> {
-	const { loadConfig } = await import("@/config/index.js");
-	return loadConfig(cwd);
+async function loadConfigByScope(scope: ConfigScope, cwd?: string): Promise<SkillConfigView> {
+	const scoped = await loadScopedConfig(scope, cwd);
+	return {
+		enabledSkills: Array.isArray(scoped.enabledSkills) ? scoped.enabledSkills : [],
+		disabledSkills: Array.isArray(scoped.disabledSkills) ? scoped.disabledSkills : [],
+		skillsOff: scoped.skillsOff === true,
+	};
 }
 
 function uniqueNames(values: string[]): string[] {
@@ -433,11 +447,7 @@ function uniqueNames(values: string[]): string[] {
 	return output;
 }
 
-export async function setSkillsOff(
-	off: boolean,
-	scope: "global" | "project",
-	cwd?: string
-): Promise<void> {
+export async function setSkillsOff(off: boolean, scope: ConfigScope, cwd?: string): Promise<void> {
 	await saveConfig({ skillsOff: off }, scope, cwd);
 }
 
@@ -445,7 +455,7 @@ export async function formatSkillsList(cwd?: string): Promise<string> {
 	const targetCwd = cwd ?? process.cwd();
 	const [catalog, config] = await Promise.all([
 		discoverSkills({ cwd: targetCwd }),
-		loadConfigByScope(targetCwd),
+		loadConfig(targetCwd),
 	]);
 	const selection = resolveSkillSelection(catalog, config);
 	if (catalog.skills.length === 0) {

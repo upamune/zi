@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadConfig } from "../src/config/index.js";
+import { loadConfig, loadScopedConfig } from "../src/config/index.js";
 import {
 	clearSkillCatalogCache,
 	discoverSkills,
@@ -96,5 +96,50 @@ describe("skills", () => {
 		const selection = resolveSkillSelection(catalog, config);
 		expect(selection.active).toEqual([]);
 		expect(selection.inactive.map((skill) => skill.name)).toEqual(["alpha"]);
+	});
+
+	test("should not leak global enabled skills into project config", async () => {
+		await mkdir(join(rootDir, ".xi", "skills", "alpha"), { recursive: true });
+		await writeFile(
+			join(rootDir, ".xi", "skills", "alpha", "SKILL.md"),
+			"---\nname: alpha\ndescription: alpha skill\n---\nalpha",
+			"utf-8"
+		);
+
+		await updateSkillPreference("globalOnly", "enable", "global", rootDir);
+		await updateSkillPreference("alpha", "enable", "project", rootDir);
+
+		const projectConfig = await loadScopedConfig("project", rootDir);
+		expect(projectConfig.enabledSkills).toEqual(["alpha"]);
+	});
+
+	test("should evict failed cache entries", async () => {
+		const brokenRoot = join(rootDir, "broken-root");
+		await writeFile(brokenRoot, "not-a-directory", "utf-8");
+
+		await expect(
+			discoverSkills({
+				cwd: rootDir,
+				projectRoot: rootDir,
+				globalRoot: brokenRoot,
+				useCache: true,
+			})
+		).rejects.toThrow();
+
+		await rm(brokenRoot, { force: true });
+		await mkdir(join(brokenRoot, "qmd"), { recursive: true });
+		await writeFile(
+			join(brokenRoot, "qmd", "SKILL.md"),
+			"---\nname: qmd\ndescription: recovered\n---\nhello",
+			"utf-8"
+		);
+
+		const recovered = await discoverSkills({
+			cwd: rootDir,
+			projectRoot: rootDir,
+			globalRoot: brokenRoot,
+			useCache: true,
+		});
+		expect(recovered.skills.map((skill) => skill.name)).toEqual(["qmd"]);
 	});
 });

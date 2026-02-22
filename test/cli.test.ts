@@ -63,6 +63,34 @@ describe("parseCliArgs", () => {
 				local: true,
 			});
 		});
+
+		test("should parse skill command without action", () => {
+			const result = parseCliArgs(["skill"]);
+			expect(result.command).toEqual({
+				name: "skill",
+				action: "list",
+				source: null,
+				local: false,
+			});
+		});
+
+		test("should throw on invalid skill action", () => {
+			expect(() => parseCliArgs(["skill", "invalid"])).toThrow(
+				"skill action must be one of: list, enable, disable, on, off"
+			);
+		});
+
+		test("should throw when skill enable source is missing", () => {
+			expect(() => parseCliArgs(["skill", "enable"])).toThrow("skill enable requires <name>");
+		});
+
+		test("should throw when skill disable source is missing", () => {
+			expect(() => parseCliArgs(["skill", "disable"])).toThrow("skill disable requires <name>");
+		});
+
+		test("should throw when skill on receives name", () => {
+			expect(() => parseCliArgs(["skill", "on", "qmd"])).toThrow("skill on does not accept <name>");
+		});
 	});
 
 	describe("positional prompt arguments", () => {

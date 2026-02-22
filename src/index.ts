@@ -28,6 +28,7 @@ import {
 	renderMentionedSkillContext,
 	renderSkillsSection,
 	resolveSkillSelection,
+	type SkillCatalog,
 } from "./skills/index.js";
 import { runSubcommand } from "./subcommands.js";
 import { createToolRegistry } from "./tools/index.js";
@@ -154,7 +155,23 @@ async function main(): Promise<void> {
 	const provider = createProvider(config);
 	const agentsDocs = await loadAgentsDocs({ cwd: process.cwd() });
 	const agentsInstructions = renderAgentsDocs(agentsDocs, DEFAULT_AGENTS_BYTE_BUDGET).text;
-	const skillCatalog = await discoverSkills({ cwd });
+	let skillCatalog: SkillCatalog;
+	try {
+		skillCatalog = await discoverSkills({ cwd });
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		const startedAt = Date.now();
+		const completedAt = Date.now();
+		await session.tools.record(
+			"skills-discovery",
+			startedAt,
+			completedAt,
+			{ cwd },
+			undefined,
+			`discoverSkills failed: ${message}`
+		);
+		skillCatalog = { skills: [], warnings: [`discoverSkills failed: ${message}`], roots: [] };
+	}
 	const skillSelection = resolveSkillSelection(skillCatalog, config, {
 		cliSkillNames: args.skills,
 		noSkills: args.noSkills,

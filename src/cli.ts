@@ -177,6 +177,9 @@ function parseCommand(positionals: string[], local: boolean): CliCommand | null 
 		if ((action === "enable" || action === "disable") && !source) {
 			throw new Error(`skill ${action} requires <name>`);
 		}
+		if ((action === "on" || action === "off") && source) {
+			throw new Error(`skill ${action} does not accept <name>`);
+		}
 		return {
 			name: "skill",
 			action: action as CliCommand["action"],

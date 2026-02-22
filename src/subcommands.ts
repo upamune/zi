@@ -253,16 +253,19 @@ export async function runSubcommand(
 			}
 			if (action === "on") {
 				await setSkillsOff(false, configScope, cwd);
-				console.log(`Skills enabled (${scope})`);
+				console.log(`Skills enabled (${configScope})`);
 				return;
 			}
 			if (action === "off") {
 				await setSkillsOff(true, configScope, cwd);
-				console.log(`Skills disabled (${scope})`);
+				console.log(`Skills disabled (${configScope})`);
 				return;
 			}
+			if (action !== "enable" && action !== "disable") {
+				throw new Error(`Unknown skill action: ${action}`);
+			}
 			await updateSkillPreference(command.source as string, action, configScope, cwd);
-			console.log(`Skill ${action}d: ${command.source} (${scope})`);
+			console.log(`Skill ${action}d: ${command.source} (${configScope})`);
 			return;
 		}
 	}
