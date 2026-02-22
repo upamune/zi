@@ -57,7 +57,8 @@ async function main(): Promise<void> {
 		}
 	}
 
-	const config = await loadConfig();
+	const cwd = args.sessionDir ?? process.cwd();
+	const config = await loadConfig(cwd);
 
 	if (args.provider) {
 		const validProviders: ProviderName[] = ["anthropic", "openai", "kimi"];
@@ -148,7 +149,6 @@ async function main(): Promise<void> {
 			? await loadSession(sessionId, baseDir)
 			: await createSession(sessionId, baseDir);
 
-	const cwd = baseDir ?? process.cwd();
 	const bashFs = new BashFsAdapter(session.fs as OverlayAgentFS, cwd);
 	const bash = new Bash({ fs: bashFs, cwd });
 	const tools = createToolRegistry(bash, session.fs, session.tools, selectedTools.enabledTools);
