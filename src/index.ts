@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { resolve } from "node:path";
 import { Bash } from "just-bash";
 import {
 	DEFAULT_AGENTS_BYTE_BUDGET,
@@ -57,7 +58,8 @@ async function main(): Promise<void> {
 		}
 	}
 
-	const cwd = args.sessionDir ?? process.cwd();
+	const startupCwd = resolve(process.env.PWD ?? process.cwd());
+	const cwd = args.sessionDir ?? startupCwd;
 	const config = await loadConfig(cwd);
 
 	if (args.provider) {
@@ -153,7 +155,7 @@ async function main(): Promise<void> {
 	const bash = new Bash({ fs: bashFs, cwd });
 	const tools = createToolRegistry(bash, session.fs, session.tools, selectedTools.enabledTools);
 	const provider = createProvider(config);
-	const agentsDocs = await loadAgentsDocs({ cwd: process.cwd() });
+	const agentsDocs = await loadAgentsDocs({ cwd: startupCwd });
 	const agentsInstructions = renderAgentsDocs(agentsDocs, DEFAULT_AGENTS_BYTE_BUDGET).text;
 	let skillCatalog: SkillCatalog;
 	try {
