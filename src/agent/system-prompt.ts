@@ -1,4 +1,4 @@
-export interface BuildSystemPromptOptions {
+interface BuildSystemPromptOptions {
 	customPrompt?: string;
 	appendSystemPrompt?: string;
 	agentsInstructions?: string;

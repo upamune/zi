@@ -11,7 +11,7 @@ export interface SessionHeader {
 	parentSession?: string;
 }
 
-export interface SessionEntryBase {
+interface SessionEntryBase {
 	id: string;
 	parentId: string | null;
 	timestamp: number;
@@ -24,7 +24,7 @@ export interface ContentBlock {
 	mimeType?: string;
 }
 
-export interface ToolCall {
+interface ToolCall {
 	id: string;
 	name: string;
 	args: Record<string, unknown>;

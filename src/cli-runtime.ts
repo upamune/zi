@@ -29,7 +29,7 @@ export function validateApiKey(provider: string, env: NodeJS.ProcessEnv = proces
 	}
 }
 
-export type OutputMode = "text" | "json" | "rpc";
+type OutputMode = "text" | "json" | "rpc";
 
 export function resolveOutputMode(args: Pick<CliArgs, "mode" | "print">): OutputMode {
 	if (args.print) {
@@ -59,14 +59,14 @@ export function applyApiKeyOverride(
 	}
 }
 
-export interface SessionResolutionInput {
+interface SessionResolutionInput {
 	session: string | null;
 	resume: boolean;
 	continue: boolean;
 	availableSessions: string[];
 }
 
-export interface SessionResolution {
+interface SessionResolution {
 	sessionId: string | null;
 	shouldResume: boolean;
 }
@@ -103,7 +103,7 @@ function normalizeSession(value: string): string {
 const TOOL_NAMES: ToolName[] = ["read", "write", "edit", "bash"];
 const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high"] as const;
 
-export interface ToolSelectionResult {
+interface ToolSelectionResult {
 	enabledTools: ToolName[];
 }
 

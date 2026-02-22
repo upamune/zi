@@ -50,7 +50,7 @@ function savePackageStore(path: string, store: PackageStore): void {
 	writeFileSync(path, JSON.stringify(store, null, 2), "utf-8");
 }
 
-export function installSource(source: string, scope: "global" | "local", cwd: string): void {
+function installSource(source: string, scope: "global" | "local", cwd: string): void {
 	const path = getPackageStorePath(scope, cwd);
 	const store = loadPackageStore(path);
 	if (store.packages.some((entry) => entry.source === source)) {
@@ -63,7 +63,7 @@ export function installSource(source: string, scope: "global" | "local", cwd: st
 	savePackageStore(path, store);
 }
 
-export function removeSource(source: string, scope: "global" | "local", cwd: string): void {
+function removeSource(source: string, scope: "global" | "local", cwd: string): void {
 	const path = getPackageStorePath(scope, cwd);
 	const store = loadPackageStore(path);
 	if (!store.packages.some((entry) => entry.source === source)) {
@@ -73,7 +73,7 @@ export function removeSource(source: string, scope: "global" | "local", cwd: str
 	savePackageStore(path, store);
 }
 
-export function updateSources(source: string | null, cwd: string): number {
+function updateSources(source: string | null, cwd: string): number {
 	const paths = [getPackageStorePath("global", cwd), getPackageStorePath("local", cwd)];
 	let updates = 0;
 	for (const path of paths) {
@@ -100,7 +100,7 @@ export function updateSources(source: string | null, cwd: string): number {
 	return updates;
 }
 
-export function listSources(cwd: string): PackageListResult[] {
+function listSources(cwd: string): PackageListResult[] {
 	if (!existsSync(cwd)) {
 		throw new Error(`Directory not found: ${cwd}`);
 	}
@@ -119,7 +119,7 @@ export function listSources(cwd: string): PackageListResult[] {
 	return [...globalEntries, ...localEntries];
 }
 
-export async function printConfig(cwd: string): Promise<void> {
+async function printConfig(cwd: string): Promise<void> {
 	if (!existsSync(cwd)) {
 		throw new Error(`Directory not found: ${cwd}`);
 	}

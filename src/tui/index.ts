@@ -23,14 +23,14 @@ import {
 	type SlashCommand,
 } from "@/tui/slash-commands.js";
 
-export interface TuiOptions {
+interface TuiOptions {
 	sessionId: string;
 	model: string;
 	provider: string;
 	cwd: string;
 }
 
-export interface MessageItem {
+interface MessageItem {
 	role: "user" | "assistant";
 	content: string;
 	toolCalls?: Array<{
@@ -457,7 +457,7 @@ class HelpOverlay implements Component {
 	}
 }
 
-export class ZiTui {
+class ZiTui {
 	private tui: TUI;
 	private header: Header;
 	private conversationArea: ConversationArea;

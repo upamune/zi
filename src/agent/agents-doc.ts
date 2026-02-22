@@ -1,7 +1,7 @@
 import { access, readFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 
-export const DEFAULT_AGENTS_FILENAMES = ["AGENTS.md", "AGENT.md", ".agents.md"] as const;
+const DEFAULT_AGENTS_FILENAMES = ["AGENTS.md", "AGENT.md", ".agents.md"] as const;
 export const DEFAULT_AGENTS_BYTE_BUDGET = 32 * 1024;
 
 export interface AgentsDoc {
@@ -10,13 +10,13 @@ export interface AgentsDoc {
 	content: string;
 }
 
-export interface LoadAgentsDocsOptions {
+interface LoadAgentsDocsOptions {
 	cwd?: string;
 	filenames?: readonly string[];
 	resolveGitRoot?: (startDir: string) => Promise<string | null>;
 }
 
-export interface RenderedAgentsDocs {
+interface RenderedAgentsDocs {
 	text: string;
 	truncated: boolean;
 	files: string[];

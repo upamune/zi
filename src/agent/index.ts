@@ -14,14 +14,14 @@ export interface AgentConfig {
 	thinking?: "off" | "minimal" | "low" | "medium" | "high";
 }
 
-export interface AgentOptions {
+interface AgentOptions {
 	session: Session;
 	tools: ToolRegistry;
 	provider: LLMProvider;
 	config?: AgentConfig;
 }
 
-export interface AgentResponse {
+interface AgentResponse {
 	content: string;
 	toolCalls?: Array<{
 		name: string;
@@ -36,7 +36,7 @@ export type StreamEvent =
 	| { type: "tool-call-start"; toolName: string; args: Record<string, unknown> }
 	| { type: "tool-call-end"; toolName: string; args: Record<string, unknown> };
 
-export interface ToolCallResult {
+interface ToolCallResult {
 	toolCallId: string;
 	toolName: string;
 	args: Record<string, unknown>;
@@ -293,7 +293,7 @@ function buildPromptWithThinking(config: AgentConfig, appendix: string = ""): st
 	return `${fullPrompt}\n\nThinking level: ${config.thinking}`;
 }
 
-export async function createAgent(
+async function createAgent(
 	session: Session,
 	tools: ToolRegistry,
 	config?: { provider?: LLMProvider; systemPrompt?: string }

@@ -29,14 +29,14 @@ interface ParsedFrontmatter {
 	description?: string;
 }
 
-export interface DiscoverSkillsOptions {
+interface DiscoverSkillsOptions {
 	cwd?: string;
 	projectRoot?: string;
 	globalRoot?: string;
 	useCache?: boolean;
 }
 
-export interface SkillSelection {
+interface SkillSelection {
 	active: SkillDefinition[];
 	inactive: SkillDefinition[];
 }
@@ -47,7 +47,7 @@ interface SkillConfigView {
 	skillsOff: boolean;
 }
 
-export interface RuntimeSkillOptions {
+interface RuntimeSkillOptions {
 	cliSkillNames?: string[];
 	noSkills?: boolean;
 }
