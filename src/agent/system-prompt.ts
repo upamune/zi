@@ -1,6 +1,7 @@
 export interface BuildSystemPromptOptions {
 	customPrompt?: string;
 	appendSystemPrompt?: string;
+	agentsInstructions?: string;
 	cwd?: string;
 }
 
@@ -35,6 +36,9 @@ Guidelines:
 
 	if (options.appendSystemPrompt) {
 		prompt += `\n\n${options.appendSystemPrompt}`;
+	}
+	if (options.agentsInstructions) {
+		prompt += `\n\n${options.agentsInstructions}`;
 	}
 
 	prompt += `\n\nCurrent date and time: ${now}`;

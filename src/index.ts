@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { Bash } from "just-bash";
+import {
+	DEFAULT_AGENTS_BYTE_BUDGET,
+	loadAgentsDocs,
+	renderAgentsDocs,
+} from "./agent/agents-doc.js";
 import { Agent } from "./agent/index.js";
 import { createProvider, getModelsByProvider, type ProviderName } from "./agent/provider.js";
 import { createSession, listSessions, loadSession, sessionExists } from "./agent/session.js";
@@ -141,6 +146,8 @@ async function main(): Promise<void> {
 	const bash = new Bash({ fs: bashFs, cwd });
 	const tools = createToolRegistry(bash, session.fs, session.tools, selectedTools.enabledTools);
 	const provider = createProvider(config);
+	const agentsDocs = await loadAgentsDocs({ cwd: process.cwd() });
+	const agentsInstructions = renderAgentsDocs(agentsDocs, DEFAULT_AGENTS_BYTE_BUDGET).text;
 
 	const agent = new Agent({
 		session,
@@ -150,6 +157,7 @@ async function main(): Promise<void> {
 			systemPrompt: buildSystemPrompt({
 				customPrompt: args.systemPrompt ?? undefined,
 				appendSystemPrompt: args.appendSystemPrompt ?? undefined,
+				agentsInstructions: agentsInstructions || undefined,
 			}),
 			maxRetries: 3,
 			enabledTools: selectedTools.enabledTools,
