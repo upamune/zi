@@ -5,14 +5,12 @@ import { createEditTool, type EditTool } from "./edit.js";
 import { createReadTool, type ReadTool } from "./read.js";
 import { createWriteTool, type WriteTool } from "./write.js";
 
-export type { BashTool, EditTool, ReadTool, WriteTool };
-
 export interface BaseTool {
 	name: string;
 	execute(params: Record<string, unknown>): Promise<unknown>;
 }
 
-export type Tool = ReadTool | WriteTool | EditTool | BashTool;
+type Tool = ReadTool | WriteTool | EditTool | BashTool;
 export type ToolName = "read" | "write" | "edit" | "bash";
 
 export interface ToolRegistry {

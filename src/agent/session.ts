@@ -107,7 +107,7 @@ export function listSessions(baseDir?: string): string[] {
 	return files.filter((f) => f.endsWith(".db")).map((f) => f.replace(".db", ""));
 }
 
-export interface ApplySession {
+interface ApplySession {
 	deltaFs: FileSystem;
 	modifiedFiles: string[];
 	deletedFiles: string[];

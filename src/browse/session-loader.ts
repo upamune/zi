@@ -25,7 +25,7 @@ export interface SessionDetail extends SessionSummary {
 	deletedFiles: string[];
 }
 
-export interface FileContent {
+interface FileContent {
 	path: string;
 	content: string;
 }

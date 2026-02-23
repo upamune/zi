@@ -1,12 +1,4 @@
-export const SLASH_COMMAND_NAMES = [
-	"help",
-	"clear",
-	"quit",
-	"resume",
-	"skills",
-	"init",
-	"plan",
-] as const;
+const SLASH_COMMAND_NAMES = ["help", "clear", "quit", "resume", "skills", "init", "plan"] as const;
 
 export type SlashCommandName = (typeof SLASH_COMMAND_NAMES)[number];
 
