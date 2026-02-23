@@ -1,6 +1,6 @@
 {
 	"name": "xi",
-	"version": "0.1.5",
+	"version": "0.1.6",
 	"description": "A minimal, fully-trackable coding agent",
 	"type": "module",
 	"bin": {
