@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.1.6](https://github.com/upamune/xi/compare/v0.1.5...v0.1.6) - 2026-02-23
+- Restore review guidelines and local review skills by @upamune in https://github.com/upamune/xi/pull/24
+- Fix AGENTS discovery to use startup directory by @upamune in https://github.com/upamune/xi/pull/26
+- chore: add knip and clean up knip findings by @upamune in https://github.com/upamune/xi/pull/27
+
 ## [v0.1.5](https://github.com/upamune/xi/compare/v0.1.4...v0.1.5) - 2026-02-22
 - feat: hierarchical AGENTS.md loading and prompt injection by @upamune in https://github.com/upamune/xi/pull/19
 - feat: first-class skills system (zi-398) by @upamune in https://github.com/upamune/xi/pull/21
